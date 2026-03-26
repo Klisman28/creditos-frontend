@@ -9,6 +9,8 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     name: Build Vue.js and push to deploy branch
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
