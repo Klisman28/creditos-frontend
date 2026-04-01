@@ -61,9 +61,12 @@ watch(
         :to="child.route"
         v-for="child in item.children"
         @click="handleCloseSidebar()"
-        class="flex items-center gap-4 p-4 duration-300 ease-in-out group text-[13px] font-medium text-muted hover:font-medium hover:text-primary hover:bg-hover"
-        :class="{ 'bg-hover text-primary border-l-primary!': route.path === child.route }">
-        <Icon name="Dot" :size="22" />
+        class="flex items-center gap-3 pl-11 pr-4 py-2.5 duration-300 ease-in-out text-[13px] font-medium text-muted hover:text-primary hover:bg-hover"
+        :class="{ 'text-primary bg-hover': route.path === child.route }">
+        <span
+          class="w-1.5 h-1.5 rounded-full shrink-0 transition-colors"
+          :class="route.path === child.route ? 'bg-primary' : 'bg-muted/40'"
+        />
         {{ child.label }}
       </RouterLink>
     </CollapsibleContent>

@@ -244,7 +244,7 @@ const resumenRows = computed(() => {
               ¡Bienvenido, {{ state?.user?.name || "Administrador" }}!
             </h2>
             <p class="text-white/75 text-sm max-w-lg">
-              Panel de control del sistema de créditos.
+              Panel de control de Confía.
               <span v-if="!loading && cobrosHoy > 0" class="text-white font-semibold">
                 Tienes {{ cobrosHoy }} cobro{{ cobrosHoy !== 1 ? 's' : '' }} programados para hoy.
               </span>

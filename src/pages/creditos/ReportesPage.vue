@@ -243,7 +243,7 @@ const printReport = () => {
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 class="text-2xl font-bold text-card-foreground">Reportes</h2>
-          <p class="text-sm text-muted mt-1">Reporte general del sistema de créditos</p>
+          <p class="text-sm text-muted mt-1">Reporte general de Confía</p>
         </div>
         <div class="flex items-center gap-2">
           <button @click="exportCSV" class="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-card text-sm font-medium text-card-foreground hover:bg-hover transition-colors" title="Exportar CSV">

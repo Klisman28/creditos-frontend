@@ -8,6 +8,10 @@ import Footer from "@/components/Footer.vue";
 import Icon from "@/components/Icon.vue";
 import { Button } from "@/components/ui/button";
 import { push } from "notivue";
+import { useAuthStore } from "@/stores/auth";
+
+const authStore = useAuthStore();
+const esAdmin = computed(() => ["administrador", "supervisor", "validador"].includes(authStore.role ?? ""));
 
 const router = useRouter();
 
@@ -71,6 +75,26 @@ const loadPlanes = async () => {
     console.error("Error loading plans:", error);
   }
 };
+
+const selectedPlan = computed(() =>
+  planes.value.find(p => p.id === newPrestamo.value.plan_id) ?? null
+);
+
+// Auto-fill interest from plan when plan is selected
+watch(() => newPrestamo.value.plan_id, (planId) => {
+  const plan = planes.value.find(p => p.id === planId);
+  if (plan && plan.interes != null && newPrestamo.value.interes === 0) {
+    newPrestamo.value.interes = plan.interes;
+  }
+});
+
+const cuotaEstimada = computed(() => {
+  if (!selectedPlan.value || !newPrestamo.value.monto) return null;
+  const total = selectedPlan.value.total;
+  if (!total || total <= 0) return null;
+  const cuotaPlan = selectedPlan.value.cuota;
+  return cuotaPlan ?? ((newPrestamo.value.monto + (newPrestamo.value.interes || 0)) / total);
+});
 
 onMounted(() => {
   loadPrestamos();
@@ -155,13 +179,17 @@ const getInitials = (cliente: Cliente | null) => {
   return `${(cliente.persona.nombre || "?")[0]}${(cliente.persona.apellido || "?")[0]}`.toUpperCase();
 };
 
-const filterTabs = [
-  { key: "activos", label: "Activos", icon: "CircleCheck" },
-  { key: "vencidos", label: "Vencidos", icon: "CheckCheck" },
-  { key: "mora", label: "En Mora", icon: "AlertTriangle" },
-  { key: "pendientes", label: "Pendientes", icon: "Clock" },
-  { key: "aprobados_hoy", label: "Aprobados Hoy", icon: "CalendarCheck" },
+const ALL_FILTER_TABS = [
+  { key: "activos",       label: "Activos",        icon: "CircleCheck"  },
+  { key: "vencidos",      label: "Vencidos",       icon: "CheckCheck"   },
+  { key: "mora",          label: "En Mora",        icon: "AlertTriangle"},
+  { key: "pendientes",    label: "Pendientes",     icon: "Clock",  adminOnly: true },
+  { key: "aprobados_hoy", label: "Aprobados Hoy",  icon: "CalendarCheck"},
 ] as const;
+
+const filterTabs = computed(() =>
+  ALL_FILTER_TABS.filter(t => !("adminOnly" in t && t.adminOnly) || esAdmin.value)
+);
 
 const resetForm = () => {
   newPrestamo.value = {
@@ -499,6 +527,32 @@ const handleCreatePrestamo = async () => {
                     {{ plan.nombre }} {{ plan.total ? `(${plan.total} cuotas)` : '' }}
                   </option>
                 </select>
+              </div>
+              <!-- Plan info preview -->
+              <div v-if="selectedPlan" class="sm:col-span-2 bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <p class="text-xs font-bold text-primary uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <Icon name="CalendarDays" :size="13" /> Calendario generado automáticamente
+                </p>
+                <div class="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <p class="text-[10px] text-muted uppercase">Cuotas</p>
+                    <p class="font-bold text-card-foreground">{{ selectedPlan.total ?? '—' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-muted uppercase">Cuota aprox.</p>
+                    <p class="font-bold text-card-foreground">{{ cuotaEstimada ? formatMoney(cuotaEstimada) : '—' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-muted uppercase">Interés plan</p>
+                    <p class="font-bold text-card-foreground">{{ selectedPlan.interes != null ? `${selectedPlan.interes}%` : '—' }}</p>
+                  </div>
+                </div>
+              </div>
+              <div v-else-if="newPrestamo.monto" class="sm:col-span-2">
+                <p class="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                  <Icon name="AlertTriangle" :size="13" />
+                  Sin plan: no se generará calendario de cuotas automáticamente.
+                </p>
               </div>
               <div>
                 <label class="block text-xs font-medium text-muted mb-1.5">Tipo</label>

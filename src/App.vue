@@ -2,6 +2,7 @@
 import { onMounted } from "vue";
 import { Notivue, Notification, lightTheme, NotivueTheme } from "notivue";
 import { useAuthStore } from "@/stores/auth";
+import { useConfigStore } from "@/stores/config";
 
 const theme: NotivueTheme = {
   ...lightTheme,
@@ -13,10 +14,11 @@ const theme: NotivueTheme = {
 };
 
 const auth = useAuthStore();
+const configStore = useConfigStore();
 
-// Trigger token check on app boot — the router guard awaits the same promise
 onMounted(() => {
   auth.checkToken();
+  configStore.load();
 });
 </script>
 

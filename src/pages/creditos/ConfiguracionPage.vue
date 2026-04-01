@@ -65,7 +65,11 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 const resolvedLogoUrl = computed(() => {
   if (logoPreview.value) return logoPreview.value;
-  if (form.logo_url) return `${BACKEND_URL}${form.logo_url}`;
+  if (form.logo_url) {
+    // S3 URLs are already absolute; local legacy paths need the backend prefix
+    if (form.logo_url.startsWith("http")) return form.logo_url;
+    return `${BACKEND_URL}${form.logo_url}`;
+  }
   return null;
 });
 

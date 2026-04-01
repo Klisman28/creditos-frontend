@@ -67,7 +67,7 @@ const onSubmit = handleSubmit(async (values) => {
       class="content-center col-span-full p-10 sm:px-16 sm:py-20 bg-background lg:rounded-tl-[2rem] lg:rounded-bl-[2rem] md:px-40 lg:px-20 2xl:px-52 lg:col-span-1 lg:rtl:rounded-tr-[2rem] lg:rtl:rounded-br-[2rem] rtl:rounded-tl-none rtl:rounded-bl-none">
       <h3 class="font-semibold">Iniciar Sesión</h3>
       <div class="flex gap-1 mt-1 mb-10 text-sm font-medium">
-        <p class="text-muted">Sistema de Créditos</p>
+        <p class="text-muted">Confía</p>
       </div>
 
       <form @submit="onSubmit">
@@ -112,7 +112,7 @@ const onSubmit = handleSubmit(async (values) => {
 
       <div class="mt-10 text-center">
         <p class="text-xs text-muted">
-          © {{ new Date().getFullYear() }} Sistema de Créditos — Todos los derechos reservados
+          © {{ new Date().getFullYear() }} Confía — Todos los derechos reservados
         </p>
       </div>
     </div>

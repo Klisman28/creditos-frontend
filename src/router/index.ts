@@ -10,6 +10,8 @@ declare module "vue-router" {
     title?: string;
     requiresAuth?: boolean;
     guestOnly?: boolean;
+    /** Roles allowed to access this route. If absent, all authenticated users can access. */
+    roles?: string[];
   }
 }
 // ==============================================================
@@ -70,7 +72,7 @@ const router = createRouter({
 // ── Progress bar ─────────────────────────────────────────────────
 NProgress.configure({ showSpinner: false });
 
-const DEFAULT_TITLE = "Sistema de Créditos";
+const DEFAULT_TITLE = "Confía";
 const setDocumentTitle = (title?: string) => {
   document.title = title ? `${title} - ${DEFAULT_TITLE}` : DEFAULT_TITLE;
 };
@@ -104,7 +106,18 @@ router.beforeEach(async (to, _from, next) => {
     return next({ path: "/panel", replace: true });
   }
 
-  // 3) /mi-perfil → inject user's own ID as the route param
+  // 3) Role-based guard: check meta.roles on the deepest matched route
+  if (isAuthenticated) {
+    const requiredRoles = to.meta.roles as string[] | undefined;
+    if (requiredRoles && requiredRoles.length > 0) {
+      const userRole = auth.user?.roles?.[0]?.nombre?.toLowerCase() ?? "";
+      if (!requiredRoles.includes(userRole)) {
+        return next({ name: "accesoDenegado", replace: true });
+      }
+    }
+  }
+
+  // 5b) /mi-perfil → inject user's own ID as the route param
   if (to.name === "miPerfil" && isAuthenticated) {
     // The EmpleadoDetailPage reads `route.params.id`. For /mi-perfil we don't
     // have :id in the URL, so we redirect to /empleados/{userId} instead.
@@ -115,7 +128,7 @@ router.beforeEach(async (to, _from, next) => {
     });
   }
 
-  // 4) All good
+  // 5) All good
   next();
 });
 

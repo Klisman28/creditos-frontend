@@ -57,6 +57,90 @@ const loadRutas = async () => {
   }
 };
 
+// Nueva Hoja de Ruta modal
+const showNuevaRutaModal = ref(false);
+const nuevaRutaNombre = ref("");
+const nuevaRutaSaving = ref(false);
+
+const openNuevaRuta = () => {
+  nuevaRutaNombre.value = "";
+  showNuevaRutaModal.value = true;
+};
+
+const handleCrearRuta = async () => {
+  nuevaRutaSaving.value = true;
+  try {
+    await apiClient.post("/hojas-ruta", {
+      nombre: nuevaRutaNombre.value || null,
+      user_id: Number(empleadoId),
+    });
+    push.success("Hoja de ruta creada correctamente");
+    showNuevaRutaModal.value = false;
+    await loadRutas();
+  } catch (error: any) {
+    push.error(error.response?.data?.detail || "Error al crear hoja de ruta");
+  } finally {
+    nuevaRutaSaving.value = false;
+  }
+};
+
+// Editar Hoja de Ruta modal
+const showEditarRutaModal = ref(false);
+const editarRutaTarget = ref<any>(null);
+const editarRutaNombre = ref("");
+const editarRutaActiva = ref(1);
+const editarRutaSaving = ref(false);
+
+const openEditarRuta = (hoja: any) => {
+  editarRutaTarget.value = hoja;
+  editarRutaNombre.value = hoja.nombre || "";
+  editarRutaActiva.value = hoja.activa ?? 1;
+  showEditarRutaModal.value = true;
+};
+
+const handleEditarRuta = async () => {
+  if (!editarRutaTarget.value) return;
+  editarRutaSaving.value = true;
+  try {
+    await apiClient.put(`/hojas-ruta/${editarRutaTarget.value.id}`, {
+      nombre: editarRutaNombre.value || null,
+      activa: editarRutaActiva.value,
+    });
+    push.success("Hoja de ruta actualizada");
+    showEditarRutaModal.value = false;
+    await loadRutas();
+  } catch (error: any) {
+    push.error(error.response?.data?.detail || "Error al editar hoja de ruta");
+  } finally {
+    editarRutaSaving.value = false;
+  }
+};
+
+// Eliminar Hoja de Ruta
+const showEliminarRutaModal = ref(false);
+const eliminarRutaTarget = ref<any>(null);
+const eliminarRutaSaving = ref(false);
+
+const openEliminarRuta = (hoja: any) => {
+  eliminarRutaTarget.value = hoja;
+  showEliminarRutaModal.value = true;
+};
+
+const handleEliminarRuta = async () => {
+  if (!eliminarRutaTarget.value) return;
+  eliminarRutaSaving.value = true;
+  try {
+    await apiClient.delete(`/hojas-ruta/${eliminarRutaTarget.value.id}`);
+    push.success("Hoja de ruta eliminada");
+    showEliminarRutaModal.value = false;
+    await loadRutas();
+  } catch (error: any) {
+    push.error(error.response?.data?.detail || "Error al eliminar hoja de ruta");
+  } finally {
+    eliminarRutaSaving.value = false;
+  }
+};
+
 const loadPagos = async () => {
   tabContent.value.pagos.loading = true;
   try {
@@ -352,21 +436,43 @@ const getInitials = (emp: Usuario) => {
 
           <!-- RUTAS TAB -->
           <div v-if="activeTab === 'rutas'" class="p-8">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-base font-bold text-card-foreground flex items-center gap-2">
+                <Icon name="Map" :size="18" class="text-primary" />
+                Hojas de Ruta
+              </h3>
+              <Button variant="default" size="sm" class="gap-2 shadow shadow-primary/20" @click="openNuevaRuta">
+                <Icon name="Plus" :size="14" />
+                Nueva Ruta
+              </Button>
+            </div>
             <div v-if="tabContent.rutas.loading" class="flex flex-col items-center justify-center py-20">
               <div class="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
               <p class="text-sm text-muted mt-4">Cargando rutas asignadas...</p>
             </div>
-            <div v-else-if="tabContent.rutas.data.length === 0" class="text-center py-20">
+            <div v-else-if="tabContent.rutas.data.length === 0" class="text-center py-16">
                <Icon name="Map" :size="48" class="text-muted/30 mx-auto mb-4" />
                <p class="text-muted font-medium">No hay rutas asignadas a este colaborador</p>
+               <p class="text-xs text-muted mt-1">Usa el botón "Nueva Ruta" para crear la primera.</p>
             </div>
             <div v-else class="space-y-4">
                <div v-for="hoja in tabContent.rutas.data" :key="hoja.id" class="border border-border p-4 rounded-xl hover:bg-muted/30 transition-colors">
                   <div class="flex items-center justify-between">
-                     <span class="font-bold text-card-foreground">Hoja de Ruta #{{ hoja.id }}</span>
-                     <span class="text-xs px-2 py-1 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 font-bold uppercase">Activa</span>
+                     <span class="font-bold text-card-foreground">{{ hoja.nombre || `Hoja de Ruta #${hoja.id}` }}</span>
+                     <div class="flex items-center gap-2">
+                        <span :class="[
+                          'text-xs px-2 py-1 rounded font-bold uppercase',
+                          hoja.activa ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10' : 'bg-muted text-muted-foreground'
+                        ]">{{ hoja.activa ? 'Activa' : 'Inactiva' }}</span>
+                        <Button size="sm" variant="outline" class="h-7 w-7 p-0" @click="openEditarRuta(hoja)">
+                          <Icon name="Pencil" :size="13" />
+                        </Button>
+                        <Button size="sm" variant="outline" class="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:border-red-300" @click="openEliminarRuta(hoja)">
+                          <Icon name="Trash2" :size="13" />
+                        </Button>
+                     </div>
                   </div>
-                  <div class="grid grid-cols-4 gap-4 mt-3 text-xs">
+                  <div class="grid grid-cols-3 gap-4 mt-3 text-xs">
                      <div class="flex flex-col">
                         <span class="text-muted italic">Capital Activo</span>
                         <span class="font-bold font-mono">{{ formatCurrency(hoja.capital_activo) }}</span>
@@ -524,6 +630,132 @@ const getInitials = (emp: Usuario) => {
     <div v-if="loading" class="flex flex-col items-center justify-center min-h-[400px]">
        <div class="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
        <p class="text-muted mt-4 animate-pulse">Cargando perfil del colaborador...</p>
+    </div>
+
+    <!-- Modal Editar Hoja de Ruta -->
+    <div v-if="showEditarRutaModal && editarRutaTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div class="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border overflow-hidden animate-in zoom-in-95 duration-200">
+        <div class="px-6 py-5 border-b border-border flex items-center justify-between bg-muted/30">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Icon name="Pencil" :size="20" class="text-primary" />
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-card-foreground">Editar Hoja de Ruta</h3>
+              <p class="text-xs text-muted">ID #{{ editarRutaTarget.id }}</p>
+            </div>
+          </div>
+          <button @click="showEditarRutaModal = false" class="p-2 hover:bg-muted rounded-full transition-colors text-muted">
+            <Icon name="X" :size="18" />
+          </button>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-card-foreground">Nombre</label>
+            <input
+              v-model="editarRutaNombre"
+              type="text"
+              placeholder="Ej: Ruta Centro, Zona 1..."
+              class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 outline-none"
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-card-foreground">Estado</label>
+            <select
+              v-model="editarRutaActiva"
+              class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 outline-none"
+            >
+              <option :value="1">Activa</option>
+              <option :value="0">Inactiva</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-muted/30 border-t border-border flex justify-end gap-2">
+          <Button variant="outline" @click="showEditarRutaModal = false" :disabled="editarRutaSaving">Cancelar</Button>
+          <Button @click="handleEditarRuta" :disabled="editarRutaSaving" class="gap-2">
+            <Icon v-if="editarRutaSaving" name="Loader2" :size="14" class="animate-spin" />
+            Guardar Cambios
+          </Button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Confirmar Eliminar Hoja de Ruta -->
+    <div v-if="showEliminarRutaModal && eliminarRutaTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div class="bg-card w-full max-w-sm rounded-2xl shadow-2xl border border-border overflow-hidden animate-in zoom-in-95 duration-200">
+        <div class="px-6 py-5 border-b border-border flex items-center justify-between bg-muted/30">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <Icon name="Trash2" :size="20" class="text-red-500" />
+            </div>
+            <h3 class="text-base font-bold text-card-foreground">Eliminar Ruta</h3>
+          </div>
+          <button @click="showEliminarRutaModal = false" class="p-2 hover:bg-muted rounded-full transition-colors text-muted">
+            <Icon name="X" :size="18" />
+          </button>
+        </div>
+
+        <div class="p-6">
+          <p class="text-sm text-card-foreground">
+            ¿Eliminar <span class="font-bold">{{ eliminarRutaTarget.nombre || `Ruta #${eliminarRutaTarget.id}` }}</span>?
+          </p>
+          <p class="text-xs text-muted mt-2">Esta acción no se puede deshacer.</p>
+        </div>
+
+        <div class="px-6 py-4 bg-muted/30 border-t border-border flex justify-end gap-2">
+          <Button variant="outline" @click="showEliminarRutaModal = false" :disabled="eliminarRutaSaving">Cancelar</Button>
+          <Button variant="destructive" @click="handleEliminarRuta" :disabled="eliminarRutaSaving" class="gap-2">
+            <Icon v-if="eliminarRutaSaving" name="Loader2" :size="14" class="animate-spin" />
+            Eliminar
+          </Button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Nueva Hoja de Ruta -->
+    <div v-if="showNuevaRutaModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div class="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border overflow-hidden animate-in zoom-in-95 duration-200">
+        <div class="px-6 py-5 border-b border-border flex items-center justify-between bg-muted/30">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Icon name="Map" :size="20" class="text-primary" />
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-card-foreground">Nueva Hoja de Ruta</h3>
+              <p class="text-xs text-muted">
+                Promotor: {{ empleado?.persona ? `${empleado.persona.nombre} ${empleado.persona.apellido}` : empleado?.name }}
+              </p>
+            </div>
+          </div>
+          <button @click="showNuevaRutaModal = false" class="p-2 hover:bg-muted rounded-full transition-colors text-muted">
+            <Icon name="X" :size="18" />
+          </button>
+        </div>
+
+        <div class="p-6">
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-card-foreground">Nombre de la ruta <span class="text-muted">(opcional)</span></label>
+            <input
+              v-model="nuevaRutaNombre"
+              type="text"
+              placeholder="Ej: Ruta Centro, Zona 1..."
+              class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 outline-none"
+              @keyup.enter="handleCrearRuta"
+            />
+            <p class="text-xs text-muted">Si no se ingresa nombre, se usará "Ruta #ID" automáticamente.</p>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-muted/30 border-t border-border flex justify-end gap-2">
+          <Button variant="outline" @click="showNuevaRutaModal = false" :disabled="nuevaRutaSaving">Cancelar</Button>
+          <Button @click="handleCrearRuta" :disabled="nuevaRutaSaving" class="gap-2">
+            <Icon v-if="nuevaRutaSaving" name="Loader2" :size="14" class="animate-spin" />
+            Crear Ruta
+          </Button>
+        </div>
+      </div>
     </div>
 
     <Footer />

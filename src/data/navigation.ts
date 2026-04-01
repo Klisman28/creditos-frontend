@@ -1,11 +1,6 @@
-export const navigation = [
-  {
-    id: 1,
-    name: "Panel Principal",
-    menu: [
-      { label: "Panel de Control", route: "/panel", icon: "LayoutDashboard" },
-    ]
-  },
+import type { NavGroup } from "@/layout/sidebar/type";
+
+export const navigation: NavGroup[] = [
   {
     id: 2,
     name: "Operaciones",
@@ -20,10 +15,10 @@ export const navigation = [
         label: "Créditos",
         children: [
           { label: "Listado de Créditos", route: "/prestamos" },
-          { label: "Créditos a Entregar", route: "/creditos-entregar" },
-          { label: "Créditos a Finalizar", route: "/creditos-finalizar" },
-          { label: "Fechas de Descanso", route: "/fechas-descanso" },
-          { label: "Planes", route: "/planes" },
+          { label: "Créditos a Entregar", route: "/creditos-entregar", roles: ["administrador"] },
+          { label: "Créditos a Finalizar", route: "/creditos-finalizar", roles: ["administrador"] },
+          { label: "Fechas de Descanso", route: "/fechas-descanso", roles: ["administrador"] },
+          { label: "Planes", route: "/planes", roles: ["administrador"] },
         ],
       },
       {
@@ -46,6 +41,7 @@ export const navigation = [
   {
     id: 3,
     name: "Administración",
+    roles: ["administrador"],
     menu: [
       {
         icon: "UserCog",

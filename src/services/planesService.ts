@@ -23,7 +23,7 @@ const planesService = {
   getAll: () => apiClient.get('/planes').then(r => r.data),
   getPeriodos: () => apiClient.get('/planes/periodos').then(r => r.data),
   getById: (id: number) => apiClient.get(`/planes/${id}`).then(r => r.data),
-  create: (data: any) => apiClient.post('/planes', data).then(r => r.data),
+  create: (data: any) => apiClient.post('/planes/', data).then(r => r.data),
   update: (id: number, data: any) => apiClient.put(`/planes/${id}`, data).then(r => r.data),
   remove: (id: number) => apiClient.delete(`/planes/${id}`).then(r => r.data),
 }

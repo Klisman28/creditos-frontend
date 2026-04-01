@@ -1,11 +1,17 @@
 import { defineStore } from "pinia";
 import apiClient from "@/apiClient";
 
+export interface Rol {
+  id: number;
+  nombre: string;
+  descripcion: string;
+}
+
 export interface User {
   id: number;
   email: string;
   name: string;
-  roles: any[];
+  roles: Rol[];
 }
 
 interface LoginData {
@@ -29,7 +35,21 @@ export const useAuthStore = defineStore("auth", {
 
   getters: {
     /** True once the initial token verification has completed */
-    ready: (state) => state._tokenChecked
+    ready: (state) => state._tokenChecked,
+
+    /** Primary role name in lowercase, e.g. "administrador" | "cobrador" | null */
+    role: (state): string | null => {
+      const nombre = state.user?.roles?.[0]?.nombre;
+      return nombre ? nombre.toLowerCase() : null;
+    },
+
+    isAdmin(): boolean {
+      return (this.role as string | null) === "administrador";
+    },
+
+    isCobrador(): boolean {
+      return (this.role as string | null) === "cobrador";
+    }
   },
 
   actions: {
