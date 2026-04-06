@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import apiClient from "@/apiClient";
 import Footer from "@/components/Footer.vue";
 import Icon from "@/components/Icon.vue";

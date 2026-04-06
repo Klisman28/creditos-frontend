@@ -102,7 +102,7 @@ const todayLabel = computed(() => {
 });
 
 const userRole = computed(() => {
-  const roles = (state.value?.user as any)?.roles;
+  const roles = state.user?.roles;
   if (!roles?.length) return null;
   return roles[0]?.nombre ?? null;
 });

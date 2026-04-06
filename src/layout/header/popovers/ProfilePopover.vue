@@ -24,7 +24,7 @@ const userRole = computed(() => {
   const roles = auth.user?.roles;
   if (roles?.length) {
     const r = roles[0];
-    return typeof r === "string" ? r : r?.nombre || r?.name || null;
+    return typeof r === "string" ? r : r?.nombre || null;
   }
   return null;
 });

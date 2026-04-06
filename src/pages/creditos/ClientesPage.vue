@@ -50,7 +50,7 @@ const filteredClientes = computed(() => {
   const q = searchQuery.value.toLowerCase();
   return clientes.value.filter((c) => {
     const fullName = `${c.persona?.nombre || ""} ${c.persona?.apellido || ""}`.toLowerCase();
-    const cedula = (c.persona?.cedula || "").toLowerCase();
+    const cedula = (c.persona?.dpi || "").toLowerCase();
     const telefono = (c.persona?.telefono || "").toLowerCase();
     return fullName.includes(q) || cedula.includes(q) || telefono.includes(q);
   });
@@ -188,7 +188,7 @@ const handleCreateCliente = async () => {
                     </div>
                   </div>
                 </td>
-                <td class="px-5 py-4 text-muted">{{ cliente.persona?.cedula || "—" }}</td>
+                <td class="px-5 py-4 text-muted">{{ cliente.persona?.dpi || "—" }}</td>
                 <td class="px-5 py-4 text-muted">{{ cliente.persona?.telefono || "—" }}</td>
                 <td class="px-5 py-4 text-muted">{{ cliente.actividad || "—" }}</td>
                 <td class="px-5 py-4 text-muted max-w-[200px] truncate">{{ cliente.direccion_cobrar || "—" }}</td>

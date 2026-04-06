@@ -36,9 +36,9 @@ const loadCliente = async () => {
       form.value = {
         nombre: cliente.persona?.nombre || "",
         apellido: cliente.persona?.apellido || "",
-        cedula: cliente.persona?.cedula || "",
+        cedula: cliente.persona?.dpi || "",
         telefono: cliente.persona?.telefono || "",
-        direccion: cliente.persona?.direccion || "",
+        direccion: cliente.persona?.nit || "",
         empresa_trabajo: cliente.empresa_trabajo || "",
         actividad: cliente.actividad || "",
         direccion_cobrar: cliente.direccion_cobrar || "",

@@ -144,7 +144,7 @@ const filteredPrestamos = computed(() => {
     const q = searchQuery.value.toLowerCase();
     result = result.filter((p) => {
       const nombre = `${p.cliente?.persona?.nombre || ""} ${p.cliente?.persona?.apellido || ""}`.toLowerCase();
-      const cedula = (p.cliente?.persona?.cedula || "").toLowerCase();
+      const cedula = (p.cliente?.persona?.dpi || "").toLowerCase();
       const cod = `Cre-${p.id}`;
       return nombre.includes(q) || cedula.includes(q) || cod.toLowerCase().includes(q) || p.id.toString().includes(q);
     });
@@ -368,7 +368,7 @@ const handleCreatePrestamo = async () => {
                       <p class="font-semibold text-card-foreground text-sm">
                         {{ prestamo.cliente?.persona?.nombre || "—" }} {{ prestamo.cliente?.persona?.apellido || "" }}
                       </p>
-                      <p class="text-xs text-muted">{{ prestamo.cliente?.persona?.cedula || "Sin cédula" }}</p>
+                      <p class="text-xs text-muted">{{ prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
                     </div>
                   </div>
                 </td>

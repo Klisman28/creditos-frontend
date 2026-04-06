@@ -706,7 +706,7 @@ const getInitials = (emp: Usuario) => {
 
         <div class="px-6 py-4 bg-muted/30 border-t border-border flex justify-end gap-2">
           <Button variant="outline" @click="showEliminarRutaModal = false" :disabled="eliminarRutaSaving">Cancelar</Button>
-          <Button variant="destructive" @click="handleEliminarRuta" :disabled="eliminarRutaSaving" class="gap-2">
+          <Button variant="outline" @click="handleEliminarRuta" :disabled="eliminarRutaSaving" class="gap-2 border-destructive text-destructive hover:bg-destructive/10">
             <Icon v-if="eliminarRutaSaving" name="Loader2" :size="14" class="animate-spin" />
             Eliminar
           </Button>
