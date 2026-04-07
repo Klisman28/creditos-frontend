@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RouterLink, useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useForm } from "vee-validate";
 import { push } from "notivue";
 import * as yup from "yup";
