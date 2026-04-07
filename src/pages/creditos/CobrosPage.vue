@@ -79,7 +79,7 @@ const filteredItems = computed(() => {
 
 const openCobrar = (pago: PagoItem) => {
   selectedPago.value = pago;
-  cobrarForm.value = { monto: pago.total, mora: pago.mora || 0 };
+  cobrarForm.value = { monto: pago.cuota, mora: pago.mora || 0 };
   showCobrarModal.value = true;
 };
 
