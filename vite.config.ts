@@ -10,6 +10,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src")
     }
   },
+  base: "/",
   server: { port: 5050 },
-  build: { chunkSizeWarningLimit: 1600 }
+  build: {
+    chunkSizeWarningLimit: 1600,
+    outDir: "dist",
+    emptyOutDir: true
+  }
 });
