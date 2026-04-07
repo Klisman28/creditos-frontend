@@ -13,6 +13,7 @@ dist-ssr
 *.local
 .env
 ts_errors.txt
+src/__tests__/
 
 # Editor directories and files
 .vscode/*
