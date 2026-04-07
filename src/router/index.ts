@@ -87,7 +87,12 @@ router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore();
 
   // Rehydrate session: waits for the single shared promise
-  await auth.checkToken();
+  try {
+    await auth.checkToken();
+  } catch (error) {
+    // Token check failed, clear auth state
+    auth.logout();
+  }
 
   const isAuthenticated = !!auth.user;
   const requiresAuth = to.matched.some((r) => r.meta.requiresAuth);
