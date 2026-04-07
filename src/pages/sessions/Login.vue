@@ -90,12 +90,7 @@ const onSubmit = handleSubmit(async (values) => {
               :onUpdate:checked="(value) => setFieldValue('remember', value)" />
             <label for="remember" class="text-sm font-medium leading-none">Recordarme</label>
           </div>
-
-          <RouterLink
-            to="/forget-password"
-            class="text-sm transition-all text-primary hover:underline underline-offset-2">
-            ¿Olvidaste tu contraseña?
-          </RouterLink>
+          <!-- Forget password feature not implemented in backend (POST /auth/register, /auth/forget-password not available) -->
         </div>
 
         <Button :disabled="isSubmitting" type="submit" class="mt-8! w-full">

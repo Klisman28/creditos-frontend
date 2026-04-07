@@ -125,7 +125,25 @@ export const useAuthStore = defineStore("auth", {
     },
 
     register(_data: any) {
-      throw new Error("Not implemented in custom backend");
+      throw new Error(
+        "Register endpoint not implemented in backend. " +
+        "Only POST /auth/login is available. " +
+        "To enable user registration, implement POST /auth/register in app/api/auth.py"
+      );
+    },
+
+    forgetPassword(_email: string) {
+      throw new Error(
+        "Forget password endpoint not implemented in backend. " +
+        "To enable password recovery, implement POST /auth/forget-password in app/api/auth.py"
+      );
+    },
+
+    verifyEmail(_token: string) {
+      throw new Error(
+        "Email verification endpoint not implemented in backend. " +
+        "To enable email verification, implement POST /auth/verify in app/api/auth.py"
+      );
     },
 
     logout() {
