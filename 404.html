@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirigiendo...</title>
+    <script type="text/javascript">
+      // GitHub Pages SPA routing hack
+      // When a 404 is hit (path doesn't match any static file),
+      // redirect to index.html which Vue Router will handle
+      var pathSegments = window.location.pathname.split('/').filter(Boolean);
+
+      // If the path has segments and doesn't look like a file (no extension),
+      // redirect to root with the path as a query parameter
+      if (pathSegments.length > 0) {
+        var hasExtension = pathSegments[pathSegments.length - 1].includes('.');
+        if (!hasExtension) {
+          // Preserve the original pathname for Vue Router
+          window.location.replace(
+            window.location.protocol + '//' +
+            window.location.host +
+            '/?redirect=' + encodeURIComponent(window.location.pathname + window.location.search)
+          );
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <p>Redirigiendo...</p>
+  </body>
+</html>
