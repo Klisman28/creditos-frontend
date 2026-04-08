@@ -3,7 +3,7 @@ import apiClient from '@/apiClient'
 export interface Plantilla {
   id: number;
   nombre: string;
-  tasa_interes_anual: number;
+  tasa_interes: number;
   tasa_mora_diaria: number;
   frecuencia_dias: number;
   descripcion?: string;
@@ -24,7 +24,7 @@ export interface SimulacionPlan {
 
 export interface CreatePlantillaRequest {
   nombre: string;
-  tasa_interes_anual: number;
+  tasa_interes: number;
   tasa_mora_diaria: number;
   frecuencia_dias: number;
   descripcion?: string;
@@ -33,7 +33,7 @@ export interface CreatePlantillaRequest {
 
 export interface UpdatePlantillaRequest {
   nombre?: string;
-  tasa_interes_anual?: number;
+  tasa_interes?: number;
   tasa_mora_diaria?: number;
   frecuencia_dias?: number;
   descripcion?: string;
@@ -57,7 +57,7 @@ const planesService = {
   simular: (params: {
     monto: number;
     cuotas: number;
-    tasa_interes_anual: number;
+    tasa_interes: number;
     tasa_mora_diaria: number;
   }) => apiClient.post<SimulacionPlan>('/planes/simular', null, { params }).then(r => r.data),
 }

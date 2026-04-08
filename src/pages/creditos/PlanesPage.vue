@@ -25,7 +25,7 @@ const formErrors = ref<Record<string, string>>({});
 // Form data
 const formData = ref({
   nombre: "",
-  tasa_interes_anual: null as number | null,
+  tasa_interes: null as number | null,
   tasa_mora_diaria: null as number | null,
   frecuencia_dias: 30 as number,
   descripcion: "",
@@ -65,7 +65,7 @@ const summaryCards = computed(() => {
   const total = plantillas.value.length;
   const activasCount = plantillas.value.filter(p => p.activa).length;
   const avgTasaInteres = total > 0
-    ? plantillas.value.reduce((sum, p) => sum + (p.tasa_interes_anual || 0), 0) / total
+    ? plantillas.value.reduce((sum, p) => sum + (p.tasa_interes || 0), 0) / total
     : 0;
   const avgTasaMora = total > 0
     ? plantillas.value.reduce((sum, p) => sum + (p.tasa_mora_diaria || 0), 0) / total
@@ -88,10 +88,10 @@ const validateForm = (): boolean => {
   if (formData.value.nombre && formData.value.nombre.length > 100)
     errs.nombre = "El nombre no puede exceder 100 caracteres";
 
-  if (formData.value.tasa_interes_anual === null)
-    errs.tasa_interes_anual = "La tasa de interés es obligatoria";
-  else if (formData.value.tasa_interes_anual < 0 || formData.value.tasa_interes_anual > 100)
-    errs.tasa_interes_anual = "Debe estar entre 0% y 100%";
+  if (formData.value.tasa_interes === null)
+    errs.tasa_interes = "La tasa de interés es obligatoria";
+  else if (formData.value.tasa_interes < 0 || formData.value.tasa_interes > 100)
+    errs.tasa_interes = "Debe estar entre 0% y 100%";
 
   if (formData.value.tasa_mora_diaria === null)
     errs.tasa_mora_diaria = "La cuota por mora es obligatoria";
@@ -124,7 +124,7 @@ onMounted(() => {
 const resetForm = () => {
   formData.value = {
     nombre: "",
-    tasa_interes_anual: null,
+    tasa_interes: null,
     tasa_mora_diaria: null,
     frecuencia_dias: 30,
     descripcion: "",
@@ -151,7 +151,7 @@ const openEditModal = (plantilla: Plantilla) => {
   editingId.value = plantilla.id;
   formData.value = {
     nombre: plantilla.nombre,
-    tasa_interes_anual: plantilla.tasa_interes_anual,
+    tasa_interes: plantilla.tasa_interes,
     tasa_mora_diaria: plantilla.tasa_mora_diaria,
     frecuencia_dias: plantilla.frecuencia_dias,
     descripcion: plantilla.descripcion || "",
@@ -173,7 +173,7 @@ const generarSimulacion = async () => {
     return;
   }
 
-  if (!formData.value.tasa_interes_anual || formData.value.tasa_interes_anual === null) {
+  if (!formData.value.tasa_interes || formData.value.tasa_interes === null) {
     push.error("Define la tasa de interés primero");
     return;
   }
@@ -183,7 +183,7 @@ const generarSimulacion = async () => {
     simulacion.value.resultado = await planesService.simular({
       monto: simulacion.value.monto,
       cuotas: simulacion.value.cuotas,
-      tasa_interes_anual: formData.value.tasa_interes_anual,
+      tasa_interes: formData.value.tasa_interes,
       tasa_mora_diaria: formData.value.tasa_mora_diaria || 0,
     });
     simulacion.value.activa = true;
@@ -202,7 +202,7 @@ const handleSubmit = async () => {
   try {
     const payload: CreatePlantillaRequest = {
       nombre: formData.value.nombre,
-      tasa_interes_anual: formData.value.tasa_interes_anual!,
+      tasa_interes: formData.value.tasa_interes!,
       tasa_mora_diaria: formData.value.tasa_mora_diaria!,
       frecuencia_dias: formData.value.frecuencia_dias,
       descripcion: formData.value.descripcion || undefined,
@@ -362,7 +362,7 @@ const getStatusBadgeClass = (activa: boolean) => {
                 </td>
                 <td class="px-5 py-4 text-right">
                   <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 text-xs font-semibold">
-                    {{ formatPercent(plantilla.tasa_interes_anual) }}
+                    {{ formatPercent(plantilla.tasa_interes) }}
                   </span>
                 </td>
                 <td class="px-5 py-4 text-right">
@@ -500,11 +500,11 @@ const getStatusBadgeClass = (activa: boolean) => {
               <!-- Tasa Interés -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Interés Anual <span class="text-red-600">*</span>
+                  Interés <span class="text-red-600">*</span>
                 </label>
                 <div class="relative">
                   <input
-                    v-model.number="formData.tasa_interes_anual"
+                    v-model.number="formData.tasa_interes"
                     type="number"
                     min="0"
                     max="100"
@@ -512,16 +512,17 @@ const getStatusBadgeClass = (activa: boolean) => {
                     placeholder="10"
                     :class="[
                       'w-full px-3 py-2 border rounded-lg bg-background text-foreground transition-colors pr-8',
-                      formErrors.tasa_interes_anual ? 'border-red-500' : 'border-border focus:ring-primary',
+                      formErrors.tasa_interes ? 'border-red-500' : 'border-border focus:ring-primary',
                       'focus:ring-1 focus:border-transparent outline-none',
                     ]"
-                    @input="delete formErrors.tasa_interes_anual"
+                    @input="delete formErrors.tasa_interes"
                   />
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
                 </div>
-                <p v-if="formErrors.tasa_interes_anual" class="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-                  ⚠️ {{ formErrors.tasa_interes_anual }}
+                <p v-if="formErrors.tasa_interes" class="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                  ⚠️ {{ formErrors.tasa_interes }}
                 </p>
+                <p class="mt-1 text-xs text-muted">Porcentaje del monto total. Ej: 10% de Q1,000 = Q100</p>
               </div>
 
               <!-- Tasa Mora -->
