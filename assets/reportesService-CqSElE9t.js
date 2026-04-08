@@ -1,1 +1,0 @@
-import{y as r}from"./index-kpKYPzt3.js";const s={getGeneral:e=>r.get("/reportes/general",{params:e}).then(t=>t.data),getClientes:e=>r.get("/reportes/clientes",{params:e}).then(t=>t.data),getResumenDiario:(e=7)=>r.get("/reportes/resumen-diario",{params:{dias:e}}).then(t=>t.data)};export{s as r};
