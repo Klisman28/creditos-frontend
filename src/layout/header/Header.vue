@@ -4,7 +4,6 @@ import { useWindowScroll, useDark, useToggle, useTextDirection } from "@vueuse/c
 import { useSidebar } from "@/stores/sidebar";
 // CUSTOM COMPONENTS
 import Icon from "@/components/Icon.vue";
-import SearchPopover from "./popovers/SearchPopover.vue";
 import ProfilePopover from "./popovers/ProfilePopover.vue";
 import NotificationPopover from "./popovers/NotificationPopover.vue";
 
@@ -38,8 +37,6 @@ const handleFullScreen = () => {
         <button class="lg:hidden" @click="sidebarStore.handleSidebarToggle()">
           <Icon name="Menu" class="text-primary" :strokeWidth="1.5" />
         </button>
-
-        <SearchPopover />
       </div>
 
       <div class="flex items-center gap-[16px]">
