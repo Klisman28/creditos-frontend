@@ -6,6 +6,9 @@ import Footer from "@/components/Footer.vue";
 import Icon from "@/components/Icon.vue";
 import reportesService, { type ResumenGeneral } from "@/services/reportesService";
 import pagosService from "@/services/pagosService";
+import KPICard from "@/components/dashboard/KPICard.vue";
+import ResumenPeriodo from "@/components/dashboard/ResumenPeriodo.vue";
+import AccionesRapidas from "@/components/dashboard/AccionesRapidas.vue";
 
 const { state } = useAuth();
 
@@ -99,12 +102,6 @@ const todayLabel = computed(() => {
     month: "long",
     year: "numeric",
   });
-});
-
-const userRole = computed(() => {
-  const roles = state.user?.roles;
-  if (!roles?.length) return null;
-  return roles[0]?.nombre ?? null;
 });
 
 // ─── Stat cards ────────────────────────────────────────────────────
@@ -282,35 +279,29 @@ const resumenRows = computed(() => {
       </div>
     </div>
 
-    <!-- ── Stat Cards ─────────────────────────────────────────────── -->
+    <!-- ── Stat Cards (KPI) ──────────────────────────────────────────── -->
     <div
       v-for="(card, index) in statCards"
       :key="index"
-      class="col-span-12 sm:col-span-6 lg:col-span-3"
+      class="col-span-12 sm:col-span-6 lg:col-span-4"
     >
-      <div class="rounded-xl border border-border bg-card p-5 relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group cursor-default h-full">
-        <div :class="[card.bgGlow, 'absolute -top-8 -right-8 w-28 h-28 rounded-full blur-2xl pointer-events-none']"></div>
-        <div class="relative flex flex-col h-full">
-          <!-- icon -->
-          <div :class="['bg-gradient-to-br', card.gradient, 'w-10 h-10 rounded-xl flex items-center justify-center shadow-md mb-4 shrink-0']">
-            <Icon :name="card.icon" :size="18" class="text-white" />
-          </div>
-
-          <!-- skeleton -->
-          <template v-if="loading">
-            <div class="animate-pulse space-y-2">
-              <div class="h-8 bg-muted rounded-lg w-36"></div>
-              <div class="h-4 bg-muted rounded w-28"></div>
-              <div class="h-3 bg-muted rounded w-24 mt-1"></div>
-            </div>
-          </template>
-
-          <!-- content -->
-          <template v-else>
-            <p class="text-[11px] font-bold text-muted uppercase tracking-widest mb-1">{{ card.title }}</p>
-            <h3 class="text-2xl font-extrabold text-card-foreground leading-tight mb-1">{{ card.value }}</h3>
-            <p class="text-xs text-muted mt-auto pt-1">{{ card.sub }}</p>
-          </template>
+      <KPICard
+        v-if="!loading"
+        :title="card.title"
+        :icon="card.icon"
+        :value="card.value"
+        :subtitle="card.sub"
+        :gradient="card.gradient"
+        :bgGlow="card.bgGlow"
+        :textColor="card.textColor"
+      />
+      <!-- Skeleton loading -->
+      <div v-else class="rounded-xl border border-border bg-card p-6 relative overflow-hidden h-full">
+        <div class="animate-pulse space-y-3">
+          <div class="h-10 bg-muted rounded-lg w-10"></div>
+          <div class="h-8 bg-muted rounded-lg w-36"></div>
+          <div class="h-4 bg-muted rounded w-28"></div>
+          <div class="h-3 bg-muted rounded w-24 mt-2"></div>
         </div>
       </div>
     </div>
@@ -384,153 +375,14 @@ const resumenRows = computed(() => {
       </div>
     </div>
 
-    <!-- ── Accesos Rápidos ─────────────────────────────────────────── -->
+    <!-- ── Acciones Rápidas ──────────────────────────────────────────── -->
     <div class="col-span-12 lg:col-span-4">
-      <div class="rounded-xl border border-border bg-card p-6 h-full flex flex-col">
-        <div class="flex items-center justify-between mb-5">
-          <h4 class="text-base font-bold text-card-foreground">Accesos Rápidos</h4>
-          <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">Ir a</span>
-        </div>
-        <div class="space-y-1.5 flex-1">
-          <RouterLink
-            v-for="link in quickLinks"
-            :key="link.to"
-            :to="link.to"
-            class="flex items-center gap-3 rounded-xl p-3 transition-all duration-150 hover:bg-hover group"
-          >
-            <div :class="[link.color, 'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 duration-150']">
-              <Icon :name="link.icon" :size="17" :class="link.iconColor" />
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-card-foreground group-hover:text-primary transition-colors leading-tight">
-                {{ link.label }}
-              </p>
-              <p class="text-xs text-muted truncate">{{ link.sub }}</p>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <!-- badge count -->
-              <span v-if="link.badge" class="text-[10px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded-full leading-tight">
-                {{ link.badge }}
-              </span>
-              <Icon name="ChevronRight" :size="14" class="text-muted group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </RouterLink>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Información del Sistema ────────────────────────────────── -->
-    <div class="col-span-12 lg:col-span-6">
-      <div class="rounded-xl border border-border bg-card p-6 h-full">
-        <h4 class="text-base font-bold text-card-foreground mb-5">Estado del Sistema</h4>
-        <div class="space-y-1">
-
-          <div class="flex items-center justify-between py-3 border-b border-border">
-            <div class="flex items-center gap-3">
-              <span class="relative flex h-2.5 w-2.5">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-              </span>
-              <span class="text-sm text-card-foreground">Backend API</span>
-            </div>
-            <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full">
-              Conectado
-            </span>
-          </div>
-
-          <div class="flex items-center justify-between py-3 border-b border-border">
-            <div class="flex items-center gap-3">
-              <div class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></div>
-              <span class="text-sm text-card-foreground">Usuario actual</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span v-if="userRole" class="text-[10px] font-bold text-muted bg-hover px-2 py-0.5 rounded-full">
-                {{ userRole }}
-              </span>
-              <span class="text-[11px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-full">
-                {{ state?.user?.name || "—" }}
-              </span>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between py-3 border-b border-border">
-            <div class="flex items-center gap-3">
-              <div class="w-2.5 h-2.5 rounded-full bg-violet-500 shrink-0"></div>
-              <span class="text-sm text-card-foreground">Préstamos activos</span>
-            </div>
-            <span class="text-[11px] font-bold text-violet-600 bg-violet-50 dark:bg-violet-500/10 px-3 py-1 rounded-full">
-              <template v-if="loading">—</template>
-              <template v-else>{{ resumen?.prestamos_activos ?? 0 }}</template>
-            </span>
-          </div>
-
-          <div class="flex items-center justify-between py-3 border-b border-border">
-            <div class="flex items-center gap-3">
-              <div class="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0"></div>
-              <span class="text-sm text-card-foreground">Cobros hoy</span>
-            </div>
-            <span class="text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-3 py-1 rounded-full">
-              <template v-if="loading">—</template>
-              <template v-else>{{ cobrosHoy }}</template>
-            </span>
-          </div>
-
-          <div class="flex items-center justify-between py-3">
-            <div class="flex items-center gap-3">
-              <div class="w-2.5 h-2.5 rounded-full bg-gray-400 shrink-0"></div>
-              <span class="text-sm text-card-foreground">Versión</span>
-            </div>
-            <span class="text-[11px] font-medium text-muted bg-hover px-3 py-1 rounded-full">
-              v2.0.0 · Vue + FastAPI
-            </span>
-          </div>
-
-        </div>
-      </div>
+      <AccionesRapidas :links="quickLinks" />
     </div>
 
     <!-- ── Resumen del Período ────────────────────────────────────── -->
     <div class="col-span-12 lg:col-span-6">
-      <div class="rounded-xl border border-border bg-card p-6 h-full">
-        <div class="flex items-center justify-between mb-5">
-          <h4 class="text-base font-bold text-card-foreground">Resumen del Período</h4>
-          <span class="text-[10px] font-bold text-muted bg-hover px-2.5 py-1 rounded-full uppercase tracking-wider">
-            {{ activeRange === 'week' ? 'Esta semana' : 'Este mes' }}
-          </span>
-        </div>
-
-        <!-- skeleton -->
-        <div v-if="loading" class="space-y-3">
-          <div v-for="i in 4" :key="i" class="flex justify-between items-center animate-pulse">
-            <div class="h-4 bg-muted rounded-lg w-36"></div>
-            <div class="h-4 bg-muted rounded-lg w-24"></div>
-          </div>
-        </div>
-
-        <!-- no data -->
-        <div v-else-if="!resumen" class="flex flex-col items-center justify-center py-10 gap-3">
-          <div class="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center">
-            <Icon name="LayoutDashboard" :size="24" class="text-muted" />
-          </div>
-          <p class="text-sm text-muted text-center">No hay datos disponibles para este período.</p>
-        </div>
-
-        <!-- rows -->
-        <div v-else class="space-y-1">
-          <div
-            v-for="(row, i) in resumenRows"
-            :key="i"
-            class="flex items-center justify-between py-3"
-            :class="i < resumenRows.length - 1 ? 'border-b border-border' : ''"
-          >
-            <div class="flex items-center gap-3">
-              <div :class="['w-2 h-2 rounded-full shrink-0', row.dot]"></div>
-              <span class="text-sm text-muted">{{ row.label }}</span>
-            </div>
-            <span :class="['text-sm font-bold', row.color]">{{ row.value }}</span>
-          </div>
-        </div>
-      </div>
+      <ResumenPeriodo :rows="resumenRows" :loading="loading" :activeRange="activeRange" />
     </div>
 
     <Footer />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { prestamosService, type Prestamo } from "@/services/prestamosService";
+import { prestamosService, type Prestamo, type CreatePrestamoPayload } from "@/services/prestamosService";
 import { type Cliente } from "@/services/clientesService";
 import apiClient from "@/apiClient";
 import Footer from "@/components/Footer.vue";
@@ -24,9 +24,16 @@ interface ClienteOption {
 interface PlanOption {
   id: number;
   nombre: string;
-  interes: number | null;
-  cuota: number | null;
-  total: number | null;
+  interes_porcentaje: number;
+  mora_porcentaje: number;
+  frecuencia_dias: number;
+  descripcion?: string;
+  activa: boolean;
+  cuotas_default?: number;
+  // Legacy fields para backward compatibility
+  interes?: number | null;
+  cuota?: number | null;
+  total?: number | null;
 }
 
 const prestamos = ref<Prestamo[]>([]);
@@ -50,11 +57,27 @@ const newPrestamo = ref({
   cliente_nombre: "",
   monto: null as number | null,
   plan_id: null as number | null,
-  interes: 0,
   fecha_inicio: new Date().toISOString().split("T")[0],
   fecha_desembolso: new Date().toISOString().split("T")[0],
+  fecha_fin: null as string | null,
   observaciones: "",
-  tipo: 1,
+  tipo: 1 as 1 | 2 | 3,
+});
+
+// Calcular fecha de finalización automáticamente: fecha_inicio + (cuotas * frecuencia_dias)
+const fechaFinCalculada = computed(() => {
+  if (!newPrestamo.value.fecha_inicio || !selectedPlan.value) return null;
+
+  const inicio = new Date(newPrestamo.value.fecha_inicio + "T00:00:00");
+  const cuotas = selectedPlan.value.cuotas_default ?? 12;
+  const frecuencia = selectedPlan.value.frecuencia_dias ?? 30;
+
+  // fecha_fin = fecha_inicio + (cuotas * frecuencia_dias)
+  const diasTotales = cuotas * frecuencia;
+  const fin = new Date(inicio);
+  fin.setDate(fin.getDate() + diasTotales);
+
+  return fin.toISOString().split("T")[0];
 });
 
 const loadPrestamos = async () => {
@@ -80,25 +103,44 @@ const selectedPlan = computed(() =>
   planes.value.find(p => p.id === newPrestamo.value.plan_id) ?? null
 );
 
-// Auto-fill interest from plan when plan is selected
-watch(() => newPrestamo.value.plan_id, (planId) => {
-  const plan = planes.value.find(p => p.id === planId);
-  if (plan && plan.interes != null && newPrestamo.value.interes === 0) {
-    newPrestamo.value.interes = plan.interes;
-  }
+// Calcular interés monetario basado en plan % + monto
+const interesMonto = computed(() => {
+  if (!selectedPlan.value || !newPrestamo.value.monto) return 0;
+  return newPrestamo.value.monto * (selectedPlan.value.interes_porcentaje / 100);
 });
 
+// Total a pagar = monto + interés calculado
+const totalPagar = computed(() => {
+  if (!newPrestamo.value.monto) return 0;
+  return newPrestamo.value.monto + interesMonto.value;
+});
+
+// Cuotas default del plan o 12 si no existe
+const cuotasDefault = computed(() => {
+  return selectedPlan.value?.cuotas_default ?? 12;
+});
+
+// Cuota estimada = total / cuotas
 const cuotaEstimada = computed(() => {
   if (!selectedPlan.value || !newPrestamo.value.monto) return null;
-  const total = selectedPlan.value.total;
-  if (!total || total <= 0) return null;
-  const cuotaPlan = selectedPlan.value.cuota;
-  return cuotaPlan ?? ((newPrestamo.value.monto + (newPrestamo.value.interes || 0)) / total);
+  if (cuotasDefault.value <= 0) return null;
+  return totalPagar.value / cuotasDefault.value;
+});
+
+// Auto-update fecha_fin when plan or fecha_inicio changes
+watch([() => newPrestamo.value.fecha_inicio, () => newPrestamo.value.plan_id], () => {
+  if (fechaFinCalculada.value) {
+    newPrestamo.value.fecha_fin = fechaFinCalculada.value;
+  }
 });
 
 onMounted(() => {
   loadPrestamos();
   loadPlanes();
+  // Set initial fecha_fin
+  if (fechaFinCalculada.value) {
+    newPrestamo.value.fecha_fin = fechaFinCalculada.value;
+  }
 });
 
 // Client search with debounce
@@ -193,9 +235,10 @@ const filterTabs = computed(() =>
 
 const resetForm = () => {
   newPrestamo.value = {
-    cliente_id: null, cliente_nombre: "", monto: null, plan_id: null, interes: 0,
+    cliente_id: null, cliente_nombre: "", monto: null, plan_id: null,
     fecha_inicio: new Date().toISOString().split("T")[0],
     fecha_desembolso: new Date().toISOString().split("T")[0],
+    fecha_fin: null,
     observaciones: "", tipo: 1,
   };
   clienteSearch.value = "";
@@ -203,24 +246,65 @@ const resetForm = () => {
 };
 
 const handleCreatePrestamo = async () => {
+  // Validaciones
   if (!newPrestamo.value.cliente_id) {
-    push.warning("Selecciona un cliente");
+    push.error("Debes seleccionar un cliente");
     return;
   }
+
+  if (!newPrestamo.value.plan_id) {
+    push.error("Debes seleccionar un plan de préstamo");
+    return;
+  }
+
   if (!newPrestamo.value.monto || newPrestamo.value.monto <= 0) {
-    push.warning("Ingresa un monto válido");
+    push.error("Ingresa un monto válido (mayor a Q0.00)");
     return;
   }
+
+  if (!selectedPlan.value) {
+    push.error("El plan seleccionado no existe");
+    return;
+  }
+
   saving.value = true;
   try {
-    await prestamosService.create(newPrestamo.value);
-    push.success("Préstamo creado exitosamente");
+    // Construir payload con snapshot del plan
+    const payload: CreatePrestamoPayload = {
+      cliente_id: newPrestamo.value.cliente_id,
+      plan_id: newPrestamo.value.plan_id,
+      monto: newPrestamo.value.monto,
+      fecha_inicio: newPrestamo.value.fecha_inicio || undefined,
+      fecha_desembolso: newPrestamo.value.fecha_desembolso || undefined,
+      tipo: newPrestamo.value.tipo,
+      observaciones: newPrestamo.value.observaciones || undefined,
+      // SNAPSHOT del plan (para auditoría e inmutabilidad)
+      plan_snapshot: {
+        interes_porcentaje: selectedPlan.value.interes_porcentaje,
+        mora_porcentaje: selectedPlan.value.mora_porcentaje,
+        frecuencia_dias: selectedPlan.value.frecuencia_dias,
+        nombre: selectedPlan.value.nombre,
+      },
+      // Valores calculados (referencia)
+      interes_monto_calculado: interesMonto.value,
+      total_pagar_calculado: totalPagar.value,
+    } as any; // Allow fecha_fin to be set below
+
+    // Agregar fecha_fin si existe
+    if (newPrestamo.value.fecha_fin) {
+      (payload as any).fecha_fin = newPrestamo.value.fecha_fin;
+    }
+
+    await prestamosService.create(payload);
+    push.success(`Préstamo creado a nombre de ${newPrestamo.value.cliente_nombre}`);
     showModal.value = false;
     resetForm();
     loading.value = true;
     await loadPrestamos();
   } catch (error: any) {
-    push.error(error.response?.data?.detail || "Error al crear préstamo");
+    const detail = error.response?.data?.detail || error.message || "Error desconocido";
+    const msg = typeof detail === 'string' ? detail : JSON.stringify(detail);
+    push.error(msg);
   } finally {
     saving.value = false;
   }
@@ -366,9 +450,9 @@ const handleCreatePrestamo = async () => {
                     </div>
                     <div>
                       <p class="font-semibold text-card-foreground text-sm">
-                        {{ prestamo.cliente?.persona?.nombre || "—" }} {{ prestamo.cliente?.persona?.apellido || "" }}
+                        {{ prestamo.cliente?.nombre || "—" }}
                       </p>
-                      <p class="text-xs text-muted">{{ prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
+                      <p class="text-xs text-muted">{{ prestamo.cliente?.dpi || "Sin DPI" }}</p>
                     </div>
                   </div>
                 </td>
@@ -508,51 +592,54 @@ const handleCreatePrestamo = async () => {
               <Icon name="Wallet" :size="16" class="text-primary" /> Detalles del Préstamo
             </h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Plan de Pago (REQUERIDO - primero) -->
+              <div>
+                <label class="block text-xs font-medium text-muted mb-1.5">Plan de Préstamo *</label>
+                <select v-model.number="newPrestamo.plan_id" required
+                  class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                  <option :value="null">Selecciona un plan...</option>
+                  <option v-for="plan in planes" :key="plan.id" :value="plan.id">
+                    {{ plan.nombre }} ({{ plan.interes_porcentaje }}% interés)
+                  </option>
+                </select>
+                <p v-if="!newPrestamo.plan_id && newPrestamo.monto" class="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 rounded px-2 py-1.5 mt-1.5 flex items-center gap-1">
+                  <Icon name="AlertTriangle" :size="13" />
+                  El plan es obligatorio para calcular automáticamente
+                </p>
+              </div>
+
+              <!-- Monto (REQUERIDO - dependiente de plan) -->
               <div>
                 <label class="block text-xs font-medium text-muted mb-1.5">Monto (Q) *</label>
                 <input v-model.number="newPrestamo.monto" type="number" step="0.01" min="1" required
-                  class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="0.00" />
+                  :disabled="!newPrestamo.plan_id"
+                  class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="0.00" />
+                <p v-if="!newPrestamo.plan_id" class="text-xs text-muted mt-1.5">Selecciona un plan primero</p>
               </div>
-              <div>
-                <label class="block text-xs font-medium text-muted mb-1.5">Interés (Q)</label>
-                <input v-model.number="newPrestamo.interes" type="number" step="0.01"
-                  class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="0.00" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-muted mb-1.5">Plan de Pago</label>
-                <select v-model="newPrestamo.plan_id"
-                  class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
-                  <option :value="null">Sin plan</option>
-                  <option v-for="plan in planes" :key="plan.id" :value="plan.id">
-                    {{ plan.nombre }} {{ plan.total ? `(${plan.total} cuotas)` : '' }}
-                  </option>
-                </select>
-              </div>
-              <!-- Plan info preview -->
-              <div v-if="selectedPlan" class="sm:col-span-2 bg-primary/5 border border-primary/20 rounded-xl p-4">
-                <p class="text-xs font-bold text-primary uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                  <Icon name="CalendarDays" :size="13" /> Calendario generado automáticamente
+              <!-- Plan summary when selected -->
+              <div v-if="selectedPlan" class="sm:col-span-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4">
+                <p class="text-xs font-bold text-blue-900 dark:text-blue-100 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                  <Icon name="FileText" :size="13" /> Plan Seleccionado
                 </p>
-                <div class="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <p class="text-[10px] text-muted uppercase">Cuotas</p>
-                    <p class="font-bold text-card-foreground">{{ selectedPlan.total ?? '—' }}</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
+                    <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Tasa Interés</p>
+                    <p class="font-bold text-emerald-600">{{ selectedPlan.interes_porcentaje }}%</p>
                   </div>
-                  <div>
-                    <p class="text-[10px] text-muted uppercase">Cuota aprox.</p>
-                    <p class="font-bold text-card-foreground">{{ cuotaEstimada ? formatMoney(cuotaEstimada) : '—' }}</p>
+                  <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
+                    <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Mora Atraso</p>
+                    <p class="font-bold text-orange-600">{{ selectedPlan.mora_porcentaje }}%</p>
                   </div>
-                  <div>
-                    <p class="text-[10px] text-muted uppercase">Interés plan</p>
-                    <p class="font-bold text-card-foreground">{{ selectedPlan.interes != null ? `${selectedPlan.interes}%` : '—' }}</p>
+                  <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
+                    <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Frecuencia</p>
+                    <p class="font-bold text-purple-600">c/{{ selectedPlan.frecuencia_dias }}d</p>
+                  </div>
+                  <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
+                    <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Cuotas Def.</p>
+                    <p class="font-bold text-blue-600">{{ cuotasDefault }}</p>
                   </div>
                 </div>
-              </div>
-              <div v-else-if="newPrestamo.monto" class="sm:col-span-2">
-                <p class="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2 flex items-center gap-1.5">
-                  <Icon name="AlertTriangle" :size="13" />
-                  Sin plan: no se generará calendario de cuotas automáticamente.
-                </p>
               </div>
               <div>
                 <label class="block text-xs font-medium text-muted mb-1.5">Tipo</label>
@@ -582,7 +669,21 @@ const handleCreatePrestamo = async () => {
                 <input v-model="newPrestamo.fecha_desembolso" type="date"
                   class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
               </div>
+              <div>
+                <label class="block text-xs font-medium text-muted mb-1.5">
+                  Fecha de Finalización
+                  <span v-if="selectedPlan" class="text-[10px] text-muted ml-1">
+                    ({{ selectedPlan.cuotas_default ?? 12 }} cuotas × {{ selectedPlan.frecuencia_dias ?? 30 }} días)
+                  </span>
+                </label>
+                <input v-model="newPrestamo.fecha_fin" type="date"
+                  class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  :placeholder="fechaFinCalculada || 'Selecciona un plan'" />
+              </div>
             </div>
+            <p v-if="fechaFinCalculada && newPrestamo.fecha_fin !== fechaFinCalculada" class="text-[11px] text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+              <Icon name="AlertCircle" :size="12" /> Fecha calculada: {{ fechaFinCalculada }}
+            </p>
           </div>
 
           <!-- Notes -->
@@ -593,21 +694,27 @@ const handleCreatePrestamo = async () => {
           </div>
 
           <!-- Summary -->
-          <div v-if="newPrestamo.monto" class="bg-hover rounded-xl p-4">
-            <h4 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Resumen</h4>
+          <div v-if="newPrestamo.monto && selectedPlan" class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-500/10 dark:to-blue-500/5 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4">
+            <h4 class="text-xs font-semibold text-blue-900 dark:text-blue-100 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <Icon name="DollarSign" :size="14" /> Resumen Simulado
+            </h4>
             <div class="space-y-2">
               <div class="flex justify-between text-sm">
-                <span class="text-muted">Capital</span>
+                <span class="text-muted">Capital solicitado</span>
                 <span class="font-semibold">{{ formatMoney(newPrestamo.monto) }}</span>
               </div>
               <div class="flex justify-between text-sm">
-                <span class="text-muted">Interés</span>
-                <span class="font-semibold">{{ formatMoney(newPrestamo.interes) }}</span>
+                <span class="text-muted">Interés ({{ selectedPlan.interes_porcentaje }}% del plan)</span>
+                <span class="font-semibold text-green-600">+ {{ formatMoney(interesMonto) }}</span>
               </div>
-              <hr class="border-border" />
               <div class="flex justify-between text-sm">
-                <span class="font-semibold text-card-foreground">Total a Pagar</span>
-                <span class="font-bold text-primary">{{ formatMoney((newPrestamo.monto || 0) + (newPrestamo.interes || 0)) }}</span>
+                <span class="text-muted">Cuota estimada</span>
+                <span class="font-semibold">{{ cuotaEstimada ? formatMoney(cuotaEstimada) : '—' }}</span>
+              </div>
+              <hr class="border-blue-200 dark:border-blue-500/20" />
+              <div class="flex justify-between text-sm">
+                <span class="font-semibold text-blue-900 dark:text-blue-100">Total a Pagar</span>
+                <span class="font-bold text-blue-600 text-lg">{{ formatMoney(totalPagar) }}</span>
               </div>
             </div>
           </div>

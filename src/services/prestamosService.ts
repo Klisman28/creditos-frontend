@@ -4,12 +4,20 @@ import type { Cliente } from "./clientesService";
 export interface Plan {
   id: number;
   nombre: string;
-  monto: number;
-  interes: number;
-  plazo: number;
+  interes_porcentaje: number;
+  mora_porcentaje: number;
+  frecuencia_dias: number;
+  descripcion?: string;
+  activa: boolean;
+  cuotas_default?: number;
+  // Legacy fields (deprecated, keep for backward compatibility)
+  monto?: number;
+  interes?: number;
+  plazo?: number;
   mora?: number;
   cuota?: number;
   capital?: number;
+  total?: number;
   periodo?: { id: number; nombre: string };
 }
 
@@ -42,6 +50,27 @@ export interface PrestamoDetail extends Prestamo {
   pagos?: any[];
 }
 
+export interface CreatePrestamoPayload {
+  cliente_id: number;
+  plan_id: number;
+  monto: number;
+  fecha_inicio?: string;
+  fecha_desembolso?: string;
+  fecha_fin?: string;
+  tipo: 1 | 2 | 3;
+  observaciones?: string;
+  // Snapshot del plan (para auditoría e inmutabilidad)
+  plan_snapshot?: {
+    interes_porcentaje: number;
+    mora_porcentaje: number;
+    frecuencia_dias: number;
+    nombre: string;
+  };
+  // Valores calculados (para referencia)
+  interes_monto_calculado?: number;
+  total_pagar_calculado?: number;
+}
+
 export interface FechaDescanso {
   id: number;
   fecha: string;
@@ -59,7 +88,7 @@ export const prestamosService = {
     return response.data;
   },
 
-  async create(data: any) {
+  async create(data: CreatePrestamoPayload) {
     const response = await apiClient.post<Prestamo>("/prestamos/", data);
     return response.data;
   },

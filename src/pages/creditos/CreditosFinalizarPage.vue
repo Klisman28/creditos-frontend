@@ -26,12 +26,16 @@ const searchQuery = ref("");
 const currentPage = ref(1);
 const itemsPerPage = 12;
 
+// Default range: last 7 days + next 90 days (to capture overdue and upcoming)
 const today = new Date();
-const inThirtyDays = new Date(today);
-inThirtyDays.setDate(inThirtyDays.getDate() + 30);
+const start = new Date(today);
+const end = new Date(today);
 
-const fechaInicio = ref(today.toISOString().slice(0, 10));
-const fechaFin = ref(inThirtyDays.toISOString().slice(0, 10));
+start.setDate(start.getDate() - 7); // 7 days in the past (catch overdue)
+end.setDate(end.getDate() + 90);   // 90 days in the future
+
+const fechaInicio = ref(start.toISOString().slice(0, 10));
+const fechaFin = ref(end.toISOString().slice(0, 10));
 
 const loadData = async () => {
   loading.value = true;
@@ -40,9 +44,20 @@ const loadData = async () => {
       inicio: fechaInicio.value,
       fin: fechaFin.value,
     });
-    items.value = data.items ?? data;
-  } catch (error) {
-    push.error("Error al cargar créditos a finalizar");
+
+    // Debugg log
+    console.log("Respuesta del servidor:", data);
+
+    // Handle both formats: {items: [...]} or direct array
+    items.value = data.items ?? (Array.isArray(data) ? data : []);
+
+    if (items.value.length === 0) {
+      push.info("No hay créditos por finalizar en este periodo");
+    }
+  } catch (error: any) {
+    console.error("Error detallado:", error);
+    const message = error.response?.data?.detail || "Error al cargar créditos a finalizar";
+    push.error(message);
   } finally {
     loading.value = false;
   }
@@ -133,7 +148,11 @@ const getClasificacionBadge = (id: number) => {
       <div v-else-if="filtered.length === 0" class="rounded-xl border border-border bg-card p-12 text-center">
         <Icon name="CalendarCheck" :size="48" class="text-muted mx-auto mb-4" />
         <h4 class="text-lg font-semibold text-card-foreground mb-2">No hay créditos por finalizar</h4>
-        <p class="text-sm text-muted">No se encontraron préstamos que finalicen en el periodo seleccionado</p>
+        <p class="text-sm text-muted mb-4">No se encontraron préstamos que finalicen entre:</p>
+        <p class="text-xs text-muted font-mono bg-muted/20 inline-block px-3 py-2 rounded">
+          {{ formatDate(fechaInicio + "T00:00:00") }} hasta {{ formatDate(fechaFin + "T00:00:00") }}
+        </p>
+        <p class="text-xs text-muted mt-4">Intenta cambiar el rango de fechas o verifica que los créditos estén marcados como pendientes en el sistema</p>
       </div>
 
       <div v-else class="rounded-xl border border-border bg-card overflow-hidden">
