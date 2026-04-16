@@ -67,7 +67,7 @@ const handleDelete = (index: number) => {
 
         <button
           type="button"
-          @click="handleDelete(index)"
+          @click="handleDelete(index as number)"
           class="absolute p-0.5 rounded-lg top-1 right-1 bg-error/10">
           <Icon name="X" :size="14" :strokeWidth="2" class="text-error" />
         </button>
