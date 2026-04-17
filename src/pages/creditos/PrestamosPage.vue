@@ -217,8 +217,50 @@ const getStatusBadge = (p: Prestamo) => {
 };
 
 const getInitials = (cliente: Cliente | null) => {
-  if (!cliente?.persona) return "??";
-  return `${(cliente.persona.nombre || "?")[0]}${(cliente.persona.apellido || "?")[0]}`.toUpperCase();
+  const nombre = cliente?.nombre || cliente?.persona?.nombre || "";
+  const apellido = (cliente?.persona as any)?.apellido || "";
+  if (!nombre) return "??";
+  return `${nombre[0]}${apellido ? apellido[0] : (nombre[1] || "")}`.toUpperCase();
+};
+
+const AVATAR_COLORS = [
+  "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+  "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
+  "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300",
+  "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300",
+  "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
+];
+const getAvatarColor = (id: number | undefined) => AVATAR_COLORS[(id || 0) % AVATAR_COLORS.length];
+
+const getMoraSeverity = (mora: number | null | undefined) => {
+  const m = mora || 0;
+  if (m <= 0) return null;
+  if (m < 50) return { label: "Leve", dotClass: "bg-amber-400", rowClass: "" };
+  if (m < 150) return { label: "Moderada", dotClass: "bg-orange-500", rowClass: "border-l-2 border-l-orange-400" };
+  return { label: "Alta", dotClass: "bg-red-500", rowClass: "border-l-2 border-l-red-500 bg-red-500/[0.02]" };
+};
+
+const formatRelativeDate = (dateStr: string | null) => {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr + "T00:00:00");
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Ayer";
+  if (diffDays < 30) return `hace ${diffDays}d`;
+  if (diffDays < 365) return `hace ${Math.floor(diffDays / 30)}m`;
+  return `hace ${Math.floor(diffDays / 365)}a`;
+};
+
+const getCapitalProgress = (p: Prestamo) => {
+  const total = p.monto || 0;
+  if (total === 0) return 0;
+  const recuperado = p.capital_recuperado || 0;
+  return Math.min(100, Math.max(0, (recuperado / total) * 100));
 };
 
 const ALL_FILTER_TABS = [
@@ -492,60 +534,111 @@ const handleCreatePrestamo = async () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="prestamo in paginatedPrestamos" :key="prestamo.id"
-                class="border-b border-border last:border-0 transition-colors hover:bg-hover/50">
-                <td class="px-5 py-4">
+              <tr
+                v-for="prestamo in paginatedPrestamos" :key="prestamo.id"
+                :class="[
+                  'border-b border-border last:border-0 transition-all group',
+                  getMoraSeverity(prestamo.mora)?.rowClass || 'hover:bg-hover/40'
+                ]"
+              >
+                <!-- ID -->
+                <td class="px-5 py-3.5">
                   <span class="text-xs font-mono font-bold text-primary">#{{ prestamo.id }}</span>
                 </td>
-                <td class="px-5 py-4">
+
+                <!-- Cliente -->
+                <td class="px-5 py-3.5">
                   <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
+                    <div :class="['w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-transform group-hover:scale-105', getAvatarColor(prestamo.cliente_id)]">
                       {{ getInitials(prestamo.cliente) }}
                     </div>
                     <div>
-                      <p class="font-semibold text-card-foreground text-sm">
+                      <p class="font-semibold text-card-foreground text-sm leading-tight">
                         {{ prestamo.cliente?.nombre || prestamo.cliente?.persona?.nombre || "—" }}
                       </p>
-                      <p class="text-xs text-muted">{{ prestamo.cliente?.dpi || prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
+                      <p class="text-[11px] text-muted mt-0.5">{{ prestamo.cliente?.dpi || prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
                     </div>
                   </div>
                 </td>
-                <td class="px-5 py-4 text-right font-semibold text-card-foreground">{{ formatMoney(prestamo.monto) }}</td>
-                <td class="px-5 py-4 text-right text-muted">{{ formatMoney(prestamo.capital_activo) }}</td>
-                <td class="px-5 py-4 text-right text-muted">{{ formatMoney(prestamo.saldo) }}</td>
-                <td class="px-5 py-4 text-right">
-                  <span :class="(prestamo.mora || 0) > 0 ? 'text-red-600 font-semibold' : 'text-muted'">
-                    {{ formatMoney(prestamo.mora) }}
+
+                <!-- Monto -->
+                <td class="px-5 py-3.5 text-right font-semibold text-card-foreground">
+                  {{ formatMoney(prestamo.monto) }}
+                </td>
+
+                <!-- Capital con barra de progreso -->
+                <td class="px-5 py-3.5 text-right">
+                  <p class="text-sm text-muted font-medium">{{ formatMoney(prestamo.capital_activo) }}</p>
+                  <div class="w-16 h-1 bg-border rounded-full mt-1 ml-auto overflow-hidden">
+                    <div
+                      class="h-full rounded-full transition-all"
+                      :class="getCapitalProgress(prestamo) >= 80 ? 'bg-emerald-500' : getCapitalProgress(prestamo) >= 40 ? 'bg-blue-500' : 'bg-primary/40'"
+                      :style="{ width: getCapitalProgress(prestamo) + '%' }"
+                    ></div>
+                  </div>
+                </td>
+
+                <!-- Saldo -->
+                <td class="px-5 py-3.5 text-right">
+                  <span
+                    :class="(prestamo.saldo || 0) < 0
+                      ? 'text-emerald-600 font-medium text-xs'
+                      : (prestamo.saldo || 0) === 0 ? 'text-muted text-sm' : 'text-muted text-sm'"
+                    :title="(prestamo.saldo || 0) < 0 ? 'Exceso de pagos' : ''"
+                  >
+                    {{ (prestamo.saldo || 0) < 0 ? 'Pagado+' : formatMoney(prestamo.saldo) }}
                   </span>
                 </td>
-                <td class="px-5 py-4 text-center">
-                  <span :class="[getStatusBadge(prestamo).class, 'px-2.5 py-1 rounded-full text-xs font-semibold']">
+
+                <!-- Mora con severidad -->
+                <td class="px-5 py-3.5 text-right">
+                  <div v-if="(prestamo.mora || 0) > 0" class="inline-flex items-center gap-1.5 justify-end">
+                    <span :class="['w-1.5 h-1.5 rounded-full flex-shrink-0', getMoraSeverity(prestamo.mora)?.dotClass]"></span>
+                    <span class="text-red-600 font-semibold text-sm">{{ formatMoney(prestamo.mora) }}</span>
+                  </div>
+                  <span v-else class="text-muted text-sm">—</span>
+                </td>
+
+                <!-- Estado -->
+                <td class="px-5 py-3.5 text-center">
+                  <span :class="[getStatusBadge(prestamo).class, 'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold']">
                     {{ getStatusBadge(prestamo).label }}
                   </span>
                 </td>
-                <td class="px-5 py-4 text-muted text-xs">{{ prestamo.fecha_inicio || "—" }}</td>
-                <td class="px-5 py-4">
-                  <div class="flex items-center justify-center gap-1">
+
+                <!-- Fecha relativa -->
+                <td class="px-5 py-3.5">
+                  <span
+                    class="text-xs text-muted cursor-default"
+                    :title="prestamo.fecha_inicio || ''"
+                  >
+                    {{ formatRelativeDate(prestamo.fecha_inicio) }}
+                  </span>
+                </td>
+
+                <!-- Acciones (visibles solo en hover) -->
+                <td class="px-5 py-3.5">
+                  <div class="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      class="p-1.5 rounded-lg transition-colors hover:bg-hover"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-primary/10"
                       title="Ver detalle"
                       @click="router.push({ name: 'prestamoDetalle', params: { id: prestamo.id } })"
                     >
-                      <Icon name="Eye" :size="16" class="text-muted hover:text-primary" />
+                      <Icon name="Eye" :size="15" class="text-muted hover:text-primary transition-colors" />
                     </button>
                     <button
-                      class="p-1.5 rounded-lg transition-colors hover:bg-hover"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-emerald-500/10"
                       title="Pagos"
                       @click="router.push({ name: 'prestamoDetalle', params: { id: prestamo.id }, query: { tab: 'pagos' } })"
                     >
-                      <Icon name="Receipt" :size="16" class="text-muted hover:text-emerald-500" />
+                      <Icon name="Receipt" :size="15" class="text-muted hover:text-emerald-500 transition-colors" />
                     </button>
                     <button
-                      class="p-1.5 rounded-lg transition-colors hover:bg-hover"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-amber-500/10"
                       title="Ficha"
                       @click="router.push({ name: 'prestamoDetalle', params: { id: prestamo.id }, query: { tab: 'ficha' } })"
                     >
-                      <Icon name="Printer" :size="16" class="text-muted hover:text-amber-500" />
+                      <Icon name="Printer" :size="15" class="text-muted hover:text-amber-500 transition-colors" />
                     </button>
                   </div>
                 </td>
