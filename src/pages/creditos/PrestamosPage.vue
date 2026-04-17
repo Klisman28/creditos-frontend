@@ -450,9 +450,9 @@ const handleCreatePrestamo = async () => {
                     </div>
                     <div>
                       <p class="font-semibold text-card-foreground text-sm">
-                        {{ prestamo.cliente?.persona?.nombre || "—" }}
+                        {{ prestamo.cliente?.nombre || prestamo.cliente?.persona?.nombre || "—" }}
                       </p>
-                      <p class="text-xs text-muted">{{ prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
+                      <p class="text-xs text-muted">{{ prestamo.cliente?.dpi || prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
                     </div>
                   </div>
                 </td>
