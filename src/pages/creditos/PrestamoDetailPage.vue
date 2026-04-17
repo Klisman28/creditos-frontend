@@ -7,6 +7,7 @@ import Icon from "@/components/Icon.vue";
 import { Button } from "@/components/ui/button";
 import { push } from "notivue";
 import { useAuthStore } from "@/stores/auth";
+import { LOAN_TABS } from "@/types/loan";
 
 const authStore = useAuthStore();
 const esAdmin = computed(() => ["administrador", "supervisor", "validador"].includes(authStore.role ?? ""));
@@ -15,18 +16,11 @@ const route = useRoute();
 const router = useRouter();
 const prestamoId = route.params.id as string;
 
-const activeTab = ref("ficha");
+const activeTab = ref("resumen"); // CAMBIO: default tab es "resumen" (antes era "ficha")
 const loading = ref(true);
 const prestamo = ref<any>(null);
 
-const tabs = [
-  { id: "ficha", label: "Ficha", icon: "FileText" },
-  { id: "informacion", label: "Información", icon: "Info" },
-  { id: "pagos", label: "Pagos", icon: "History" },
-  { id: "documento", label: "Documento", icon: "File" },
-  { id: "compromiso", label: "Compromiso", icon: "CheckSquare" },
-  { id: "imagenes", label: "Imágenes", icon: "Image" },
-];
+const tabs = computed(() => LOAN_TABS); // CAMBIO: usar constante LOAN_TABS (5 tabs)
 
 const loadPrestamo = async () => {
   loading.value = true;
@@ -98,6 +92,55 @@ const formatDate = (dateStr: string | null) => {
   if (!dateStr) return "—";
   return new Date(dateStr + "T00:00:00").toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" });
 };
+
+// ── NUEVOS COMPUTED PROPERTIES para banda resumen mejorada ────────────────────────────────────
+const cuotasPagadas = computed(() => (prestamo.value?.pagos ?? []).length);
+
+const cuotasTotal = computed(() => (prestamo.value?.fichas_pago ?? []).length);
+
+const proximaCuotaFecha = computed(() => {
+  const fichas = prestamo.value?.fichas_pago ?? [];  // ✅ Fallback a array vacío
+  if (!fichas.length) return "—";
+  const nextPending = fichas.find((f: any) => f.estado !== 1);
+  return nextPending ? formatDate(nextPending.fecha) : "—";
+});
+
+const proximaCuotaMonto = computed(() => {
+  const fichas = prestamo.value?.fichas_pago ?? [];  // ✅ Fallback a array vacío
+  if (!fichas.length) return 0;
+  const nextPending = fichas.find((f: any) => f.estado !== 1);
+  return nextPending?.cuota ?? 0;
+});
+
+const diasAtraso = computed(() => {
+  const fichas = prestamo.value?.fichas_pago ?? [];  // ✅ Fallback a array vacío
+  if (!fichas.length) return 0;
+  const today = new Date();
+  let maxDays = 0;
+  fichas.forEach((f: any) => {
+    if (f.estado !== 1 && new Date(f.fecha) < today) {
+      const days = Math.floor((today.getTime() - new Date(f.fecha).getTime()) / (1000 * 60 * 60 * 24));
+      maxDays = Math.max(maxDays, days);
+    }
+  });
+  return maxDays;
+});
+
+const riesgoLabel = computed(() => {
+  if (diasAtraso.value > 15) return "CRÍTICO";
+  if (diasAtraso.value > 5) return "ADVERTENCIA";
+  return "NORMAL";
+});
+
+const riesgoColor = computed(() => {
+  if (diasAtraso.value > 15) return "bg-red-500";
+  if (diasAtraso.value > 5) return "bg-amber-500";
+  return "bg-emerald-500";
+});
+
+const porcentajePagado = computed(() => {
+  return cuotasTotal.value > 0 ? Math.round((cuotasPagadas.value / cuotasTotal.value) * 100) : 0;
+});
 
 const getFichaStatusLabel = (id: number) => {
   const map: Record<number, string> = {
@@ -292,39 +335,56 @@ const getFichaStatusBadgeClass = (id: number) => {
       </div>
     </div>
 
-    <!-- Loan Summary Banner -->
+    <!-- Loan Summary Banner - MEJORADO -->
     <div class="col-span-12">
       <div class="rounded-2xl border border-border bg-card p-6 shadow-sm overflow-hidden relative">
         <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-        <div class="relative flex flex-col md:flex-row md:items-center gap-6">
-          <div class="flex items-center gap-4">
-            <div class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-              <Icon name="Wallet" :size="32" />
-            </div>
+
+        <div class="relative">
+          <!-- Encabezado -->
+          <h2 class="text-2xl font-bold mb-6">Crédito #{{ prestamoId }} — {{ prestamo?.cliente?.nombre }}</h2>
+
+          <!-- Métricas principales (3 columnas) -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
-              <h1 class="text-2xl font-bold text-card-foreground">Préstamo #{{ prestamoId }}</h1>
-              <p class="text-sm text-muted" v-if="prestamo">
-                Cliente: <router-link :to="{ name: 'clienteDetalle', params: { id: prestamo.cliente?.id } }" class="font-bold text-primary hover:underline">
-                  {{ prestamo.cliente?.nombre }}
-                </router-link>
-              </p>
+              <p class="text-xs font-bold text-muted uppercase tracking-widest mb-1">💰 Monto Original</p>
+              <p class="text-2xl font-bold text-card-foreground">{{ formatMoney(prestamo?.monto) }}</p>
+              <p class="text-xs text-muted mt-1">+ Interés: {{ formatMoney(prestamo?.interes) }}</p>
+            </div>
+
+            <div>
+              <p class="text-xs font-bold text-muted uppercase tracking-widest mb-1">💵 Saldo Pendiente</p>
+              <p class="text-2xl font-bold text-primary">{{ formatMoney(prestamo?.saldo) }}</p>
+              <p class="text-xs text-muted mt-1">Recuperado: {{ formatMoney(prestamo?.capital_recuperado) }}</p>
+            </div>
+
+            <div>
+              <p class="text-xs font-bold text-muted uppercase tracking-widest mb-1">📅 Próxima Cuota</p>
+              <p class="text-2xl font-bold text-card-foreground">{{ proximaCuotaFecha }}</p>
+              <p class="text-xs text-muted mt-1">Monto: {{ formatMoney(proximaCuotaMonto) }}</p>
             </div>
           </div>
-          
-          <div class="flex flex-wrap gap-8 md:ml-auto" v-if="prestamo">
-            <div class="text-center md:text-left">
-              <p class="text-[10px] font-bold text-muted uppercase tracking-widest">Monto Original</p>
-              <p class="text-lg font-bold text-card-foreground">{{ formatMoney(prestamo.monto) }}</p>
+
+          <!-- Métricas de riesgo -->
+          <div class="flex flex-wrap gap-4 pt-4 border-t border-border">
+            <!-- Atraso -->
+            <div v-if="diasAtraso > 0" class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-red-500"></div>
+              <span class="text-sm font-medium text-red-600">⚠️ Atraso: {{ diasAtraso }} días</span>
             </div>
-            <div class="text-center md:text-left">
-              <p class="text-[10px] font-bold text-muted uppercase tracking-widest">Saldo Actual</p>
-              <p class="text-lg font-bold text-primary">{{ formatMoney(prestamo.saldo) }}</p>
+
+            <!-- Progreso -->
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+              <span class="text-sm font-medium text-card-foreground">
+                📈 Progreso: {{ cuotasPagadas }}/{{ cuotasTotal }} cuotas ({{ porcentajePagado }}%)
+              </span>
             </div>
-            <div class="text-center md:text-left">
-              <p class="text-[10px] font-bold text-muted uppercase tracking-widest">Cuotas</p>
-              <p class="text-lg font-bold text-emerald-600">
-                {{ prestamo.pagos?.length || 0 }} / {{ prestamo.fichas_pago?.length || 0 }}
-              </p>
+
+            <!-- Riesgo -->
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full" :class="riesgoColor"></div>
+              <span class="text-sm font-medium text-card-foreground">🎯 Riesgo: {{ riesgoLabel }}</span>
             </div>
           </div>
         </div>
@@ -353,16 +413,16 @@ const getFichaStatusBadgeClass = (id: number) => {
           <div class="w-12 h-12 border-4 rounded-full border-border animate-spin border-t-primary mb-4"></div>
           <p class="text-sm text-muted font-medium">Cargando información detallada...</p>
         </div>
-        
-        <div v-else class="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300 pb-10">
+
+        <div v-else-if="prestamo" class="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300 pb-10">
           
-          <!-- Tab: Ficha -->
-          <div v-if="activeTab === 'ficha'" class="space-y-6">
+          <!-- Tab: Calendario (antes: Ficha) -->
+          <div v-if="activeTab === 'calendario'" class="space-y-6">
             <div class="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <div class="p-6 border-b border-border flex items-center justify-between bg-muted/5">
                 <h3 class="font-bold text-card-foreground">Ficha de Pago / Calendario de Cuotas</h3>
                 <div class="flex items-center gap-2">
-                  <Button v-if="esAdmin && prestamo.plan_id" variant="outline" size="sm" class="gap-2" :disabled="generandoFichas" @click="regenerarFichas">
+                  <Button v-if="esAdmin && prestamo?.plan_id" variant="outline" size="sm" class="gap-2" :disabled="generandoFichas" @click="regenerarFichas">
                     <Icon v-if="generandoFichas" name="Loader2" :size="14" class="animate-spin" />
                     <Icon v-else name="RefreshCw" :size="14" />
                     Regenerar
@@ -387,7 +447,7 @@ const getFichaStatusBadgeClass = (id: number) => {
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
-                    <tr v-if="!prestamo.fichas_pago?.length">
+                    <tr v-if="!(prestamo.fichas_pago ?? []).length">
                       <td colspan="6" class="px-6 py-10 text-center">
                         <div class="flex flex-col items-center gap-2">
                           <div class="w-12 h-12 rounded-xl bg-muted/30 flex items-center justify-center">
@@ -424,8 +484,8 @@ const getFichaStatusBadgeClass = (id: number) => {
             </div>
           </div>
 
-          <!-- Tab: Información -->
-          <div v-if="activeTab === 'informacion'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Tab: Resumen (antes: Información) -->
+          <div v-if="activeTab === 'resumen'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <h3 class="font-bold text-card-foreground mb-6 flex items-center gap-2 border-b border-border pb-4">
                 <Icon name="User" :size="18" class="text-primary" /> Datos del Cliente
@@ -464,10 +524,49 @@ const getFichaStatusBadgeClass = (id: number) => {
           </div>
 
           <!-- Tab: Pagos -->
-          <div v-if="activeTab === 'pagos'" class="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-             <div class="p-6 border-b border-border flex items-center justify-between bg-muted/5">
-                <h3 class="font-bold text-card-foreground">Historial de Pagos Realizados</h3>
+          <div v-if="activeTab === 'pagos'" class="space-y-6">
+
+             <!-- Resumen de pagos -->
+             <div class="rounded-2xl border border-border bg-card p-6 shadow-sm">
+               <h3 class="font-bold text-card-foreground mb-4 border-b border-border pb-4">Resumen de Pagos</h3>
+               <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                 <div>
+                   <p class="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Total Pagado</p>
+                   <p class="text-2xl font-bold text-primary">
+                     {{ formatMoney((prestamo?.pagos ?? []).reduce((sum: number, p: any) => sum + (p.monto || 0), 0)) }}
+                   </p>
+                 </div>
+                 <div>
+                   <p class="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Cuotas Pagadas</p>
+                   <p class="text-2xl font-bold text-card-foreground">{{ (prestamo?.pagos ?? []).length }}/{{ (prestamo?.fichas_pago ?? []).length }}</p>
+                 </div>
+                 <div>
+                   <p class="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Interés Cobrado</p>
+                   <p class="text-xl font-bold text-card-foreground">
+                     {{ formatMoney((prestamo?.pagos ?? []).reduce((sum: number, p: any) => sum + (p.interes || 0), 0)) }}
+                   </p>
+                 </div>
+                 <div>
+                   <p class="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Mora Cobrada</p>
+                   <p class="text-xl font-bold text-red-600">
+                     {{ formatMoney((prestamo?.pagos ?? []).reduce((sum: number, p: any) => sum + (p.mora || 0), 0)) }}
+                   </p>
+                 </div>
+               </div>
+               <div class="pt-4 border-t border-border">
+                 <p class="text-xs text-muted mb-2">Última transacción:</p>
+                 <p class="text-sm font-medium text-card-foreground">
+                   {{ prestamo?.pagos?.[0] ? formatDate(prestamo.pagos[0].created_at ? (prestamo.pagos[0].created_at as string) : prestamo.pagos[0].fecha) : '—' }}
+                   {{ prestamo?.pagos?.[0] ? formatMoney(prestamo.pagos[0].monto) : '' }}
+                 </p>
+               </div>
              </div>
+
+             <!-- Tabla de pagos (contenedor) -->
+             <div class="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                <div class="p-6 border-b border-border flex items-center justify-between bg-muted/5">
+                  <h3 class="font-bold text-card-foreground">Historial de Pagos</h3>
+                </div>
              <div class="overflow-x-auto">
                 <table class="w-full text-sm border-collapse">
                   <thead>
@@ -481,7 +580,7 @@ const getFichaStatusBadgeClass = (id: number) => {
                      </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
-                     <tr v-if="!prestamo.pagos?.length">
+                     <tr v-if="!(prestamo.pagos ?? []).length">
                         <td colspan="6" class="px-6 py-10 text-center">
                           <div class="flex flex-col items-center gap-2">
                             <div class="w-12 h-12 rounded-xl bg-muted/30 flex items-center justify-center">
@@ -493,7 +592,7 @@ const getFichaStatusBadgeClass = (id: number) => {
                         </td>
                      </tr>
                      <tr v-for="pago in prestamo.pagos" :key="pago.id" class="hover:bg-muted/10 transition-colors">
-                        <td class="px-6 py-4 font-medium border-b border-border/50">{{ formatDate(pago.created_at || pago.fecha) }}</td>
+                        <td class="px-6 py-4 font-medium border-b border-border/50">{{ formatDate(pago.created_at ? (pago.created_at as string) : pago.fecha) }}</td>
                         <td class="px-6 py-4 text-xs text-muted border-b border-border/50">{{ pago.descripcion || 'Pago regular' }}</td>
                         <td class="px-6 py-4 text-right font-medium border-b border-border/50">{{ formatMoney(pago.capital) }}</td>
                         <td class="px-6 py-4 text-right font-medium border-b border-border/50">{{ formatMoney(pago.interes) }}</td>
@@ -502,41 +601,84 @@ const getFichaStatusBadgeClass = (id: number) => {
                      </tr>
                   </tbody>
                 </table>
+                </div>
              </div>
+
           </div>
 
-          <!-- Tab: Documento & Compromiso -->
-          <div v-if="activeTab === 'documento' || activeTab === 'compromiso'" class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-             <!-- Compromiso de pago -->
-             <div class="rounded-2xl border border-border bg-card p-8 text-center flex flex-col items-center justify-center">
-                <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                  <Icon name="FileCheck" :size="28" class="text-primary" />
+          <!-- Tab: Documentos (fusionado: documento + compromiso) -->
+          <div v-if="activeTab === 'documentos'" class="space-y-6 max-w-3xl">
+
+            <!-- Documento 1: Compromiso -->
+            <div class="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                  <Icon name="FileCheck" :size="24" class="text-emerald-600" />
                 </div>
-                <h4 class="font-bold text-card-foreground">Compromiso de Pago</h4>
-                <p class="text-xs text-muted mt-2 mb-6">Genera e imprime el documento de compromiso firmado por el cliente.</p>
-                <Button variant="outline" class="w-full gap-2" :disabled="printLoading" @click="printCompromiso">
-                  <Icon v-if="printLoading" name="Loader2" :size="16" class="animate-spin" />
-                  <Icon v-else name="Printer" :size="16" />
-                  Imprimir Compromiso
-                </Button>
-             </div>
-             <!-- Ficha de pago -->
-             <div class="rounded-2xl border border-border bg-card p-8 text-center flex flex-col items-center justify-center">
-                <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-4">
-                  <Icon name="ClipboardList" :size="28" class="text-emerald-600" />
+                <div class="flex-1">
+                  <h4 class="font-bold text-card-foreground">Compromiso de Pago</h4>
+                  <p class="text-xs text-muted mt-1">Estado: <span class="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">Generado</span></p>
+                  <p class="text-xs text-muted mt-1">Generado: 01 Ene 2026</p>
                 </div>
-                <h4 class="font-bold text-card-foreground">Ficha de Pago</h4>
-                <p class="text-xs text-muted mt-2 mb-6">Genera la ficha de cuotas programadas para entregar al cliente.</p>
-                <Button variant="outline" class="w-full gap-2" :disabled="printLoading" @click="printFicha">
-                  <Icon v-if="printLoading" name="Loader2" :size="16" class="animate-spin" />
-                  <Icon v-else name="Printer" :size="16" />
-                  Imprimir Ficha
+              </div>
+              <p class="text-xs text-muted mb-4">ℹ️ Debe ser firmado por el cliente en presencia del promotor.</p>
+              <div class="flex gap-2 flex-wrap">
+                <Button variant="outline" size="sm" class="gap-2" :disabled="printLoading" @click="printCompromiso">
+                  <Icon v-if="printLoading" name="Loader2" :size="14" class="animate-spin" />
+                  <Icon v-else name="Printer" :size="14" />
+                  Imprimir
                 </Button>
-             </div>
+                <Button variant="outline" size="sm" class="gap-2">
+                  <Icon name="Download" :size="14" />
+                  Descargar
+                </Button>
+                <Button variant="outline" size="sm" class="gap-2">
+                  <Icon name="CheckCircle" :size="14" />
+                  Marcar como enviado
+                </Button>
+              </div>
+            </div>
+
+            <!-- Documento 2: Ficha de Pago -->
+            <div class="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                  <Icon name="ClipboardList" :size="24" class="text-blue-600" />
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-bold text-card-foreground">Ficha de Pago</h4>
+                  <p class="text-xs text-muted mt-1">Estado: <span class="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">Generada</span></p>
+                  <p class="text-xs text-muted mt-1">Generada: 01 Ene 2026</p>
+                </div>
+              </div>
+              <p class="text-xs text-muted mb-4">ℹ️ Calendario de pagos completo para entregar al cliente.</p>
+              <div class="flex gap-2 flex-wrap">
+                <Button variant="outline" size="sm" class="gap-2" :disabled="printLoading" @click="printFicha">
+                  <Icon v-if="printLoading" name="Loader2" :size="14" class="animate-spin" />
+                  <Icon v-else name="Printer" :size="14" />
+                  Imprimir
+                </Button>
+                <Button variant="outline" size="sm" class="gap-2">
+                  <Icon name="Download" :size="14" />
+                  Descargar
+                </Button>
+                <Button variant="outline" size="sm" class="gap-2">
+                  <Icon name="Send" :size="14" />
+                  Enviar WhatsApp
+                </Button>
+              </div>
+            </div>
+
+            <!-- Estado de documentación -->
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-6">
+              <p class="text-sm text-emerald-900 font-medium">✅ Estado: 2 de 2 documentos completados</p>
+              <p class="text-xs text-emerald-700 mt-2">Crédito listo para desembolsar</p>
+            </div>
+
           </div>
 
-           <!-- Tab: Imágenes -->
-          <div v-if="activeTab === 'imagenes'" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+           <!-- Tab: Evidencia (antes: Imágenes) -->
+          <div v-if="activeTab === 'evidencia'" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div v-for="img in IMAGEN_CAMPOS" :key="img.campo" class="rounded-2xl border border-border bg-card overflow-hidden">
               <!-- Con imagen -->
               <div v-if="getImgUrl(img.campo)" class="group relative">
@@ -606,6 +748,17 @@ const getFichaStatusBadgeClass = (id: number) => {
             </div>
           </div>
 
+        </div>
+
+        <div v-else class="flex flex-col items-center justify-center py-20">
+          <div class="w-16 h-16 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center mb-4">
+            <Icon name="AlertCircle" :size="32" class="text-red-500" />
+          </div>
+          <p class="text-base font-bold text-card-foreground mb-2">Error al cargar el préstamo</p>
+          <p class="text-sm text-muted mb-6 max-w-md text-center">No se pudo cargar la información del préstamo. Por favor intenta de nuevo o contacta al administrador.</p>
+          <Button variant="outline" @click="loadPrestamo" class="gap-2">
+            <Icon name="RefreshCw" :size="16" /> Reintentar
+          </Button>
         </div>
       </div>
     </div>

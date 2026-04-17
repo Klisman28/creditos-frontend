@@ -25,8 +25,8 @@ const formErrors = ref<Record<string, string>>({});
 // Form data
 const formData = ref({
   nombre: "",
-  tasa_interes: null as number | null,
-  tasa_mora_diaria: null as number | null,
+  interes_porcentaje: null as number | null,
+  mora_porcentaje: null as number | null,
   frecuencia_dias: 30 as number,
   descripcion: "",
   activa: true,
@@ -65,10 +65,10 @@ const summaryCards = computed(() => {
   const total = plantillas.value.length;
   const activasCount = plantillas.value.filter(p => p.activa).length;
   const avgTasaInteres = total > 0
-    ? plantillas.value.reduce((sum, p) => sum + (p.tasa_interes || 0), 0) / total
+    ? plantillas.value.reduce((sum, p) => sum + (p.interes_porcentaje || 0), 0) / total
     : 0;
   const avgTasaMora = total > 0
-    ? plantillas.value.reduce((sum, p) => sum + (p.tasa_mora_diaria || 0), 0) / total
+    ? plantillas.value.reduce((sum, p) => sum + (p.mora_porcentaje || 0), 0) / total
     : 0;
 
   return [
@@ -88,15 +88,15 @@ const validateForm = (): boolean => {
   if (formData.value.nombre && formData.value.nombre.length > 100)
     errs.nombre = "El nombre no puede exceder 100 caracteres";
 
-  if (formData.value.tasa_interes === null)
-    errs.tasa_interes = "La tasa de interés es obligatoria";
-  else if (formData.value.tasa_interes < 0 || formData.value.tasa_interes > 100)
-    errs.tasa_interes = "Debe estar entre 0% y 100%";
+  if (formData.value.interes_porcentaje === null)
+    errs.interes_porcentaje = "La tasa de interés es obligatoria";
+  else if (formData.value.interes_porcentaje < 0 || formData.value.interes_porcentaje > 100)
+    errs.interes_porcentaje = "Debe estar entre 0% y 100%";
 
-  if (formData.value.tasa_mora_diaria === null)
-    errs.tasa_mora_diaria = "La cuota por mora es obligatoria";
-  else if (formData.value.tasa_mora_diaria < 0 || formData.value.tasa_mora_diaria > 100)
-    errs.tasa_mora_diaria = "Debe estar entre 0% y 100%";
+  if (formData.value.mora_porcentaje === null)
+    errs.mora_porcentaje = "La cuota por mora es obligatoria";
+  else if (formData.value.mora_porcentaje < 0 || formData.value.mora_porcentaje > 100)
+    errs.mora_porcentaje = "Debe estar entre 0% y 100%";
 
   if (!formData.value.frecuencia_dias || formData.value.frecuencia_dias < 1)
     errs.frecuencia_dias = "La frecuencia debe ser al menos 1 día";
@@ -124,8 +124,8 @@ onMounted(() => {
 const resetForm = () => {
   formData.value = {
     nombre: "",
-    tasa_interes: null,
-    tasa_mora_diaria: null,
+    interes_porcentaje: null,
+    mora_porcentaje: null,
     frecuencia_dias: 30,
     descripcion: "",
     activa: true,
@@ -151,8 +151,8 @@ const openEditModal = (plantilla: Plantilla) => {
   editingId.value = plantilla.id;
   formData.value = {
     nombre: plantilla.nombre,
-    tasa_interes: plantilla.tasa_interes,
-    tasa_mora_diaria: plantilla.tasa_mora_diaria,
+    interes_porcentaje: plantilla.interes_porcentaje,
+    mora_porcentaje: plantilla.mora_porcentaje,
     frecuencia_dias: plantilla.frecuencia_dias,
     descripcion: plantilla.descripcion || "",
     activa: plantilla.activa,
@@ -173,7 +173,7 @@ const generarSimulacion = async () => {
     return;
   }
 
-  if (!formData.value.tasa_interes || formData.value.tasa_interes === null) {
+  if (!formData.value.interes_porcentaje || formData.value.interes_porcentaje === null) {
     push.error("Define la tasa de interés primero");
     return;
   }
@@ -181,14 +181,16 @@ const generarSimulacion = async () => {
   simulando.value = true;
   try {
     simulacion.value.resultado = await planesService.simular({
-      monto: simulacion.value.monto,
+      monto_ejemplo: simulacion.value.monto,
       cuotas: simulacion.value.cuotas,
-      tasa_interes: formData.value.tasa_interes,
-      tasa_mora_diaria: formData.value.tasa_mora_diaria || 0,
+      interes_porcentaje: formData.value.interes_porcentaje,
+      mora_porcentaje: formData.value.mora_porcentaje || 0,
     });
     simulacion.value.activa = true;
   } catch (error: any) {
-    push.error(error.response?.data?.detail || "Error al simular");
+    const detail = error.response?.data?.detail || error.message || "Error desconocido";
+    const errorMsg = typeof detail === 'string' ? detail : JSON.stringify(detail);
+    push.error(errorMsg);
   } finally {
     simulando.value = false;
   }
@@ -202,8 +204,8 @@ const handleSubmit = async () => {
   try {
     const payload: CreatePlantillaRequest = {
       nombre: formData.value.nombre,
-      tasa_interes: formData.value.tasa_interes!,
-      tasa_mora_diaria: formData.value.tasa_mora_diaria!,
+      interes_porcentaje: formData.value.interes_porcentaje!,
+      mora_porcentaje: formData.value.mora_porcentaje!,
       frecuencia_dias: formData.value.frecuencia_dias,
       descripcion: formData.value.descripcion || undefined,
       activa: formData.value.activa,
@@ -221,7 +223,10 @@ const handleSubmit = async () => {
     loading.value = true;
     await loadPlantillas();
   } catch (error: any) {
-    push.error(error.response?.data?.detail || "Error al guardar la plantilla");
+    // Extract detailed error message
+    const detail = error.response?.data?.detail || error.message || "Error desconocido";
+    const errorMsg = typeof detail === 'string' ? detail : JSON.stringify(detail);
+    push.error(errorMsg);
   } finally {
     saving.value = false;
   }
@@ -238,7 +243,9 @@ const handleDelete = async () => {
     loading.value = true;
     await loadPlantillas();
   } catch (error: any) {
-    push.error(error.response?.data?.detail || "Error al eliminar la plantilla");
+    const detail = error.response?.data?.detail || error.message || "Error desconocido";
+    const errorMsg = typeof detail === 'string' ? detail : JSON.stringify(detail);
+    push.error(errorMsg);
   }
 };
 
@@ -362,12 +369,12 @@ const getStatusBadgeClass = (activa: boolean) => {
                 </td>
                 <td class="px-5 py-4 text-right">
                   <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 text-xs font-semibold">
-                    {{ formatPercent(plantilla.tasa_interes) }}
+                    {{ formatPercent(plantilla.interes_porcentaje) }}
                   </span>
                 </td>
                 <td class="px-5 py-4 text-right">
                   <span class="px-2 py-0.5 rounded-md bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 text-xs font-semibold">
-                    {{ formatPercent(plantilla.tasa_mora_diaria) }}
+                    {{ formatPercent(plantilla.mora_porcentaje) }}
                   </span>
                 </td>
                 <td class="px-5 py-4 text-right font-medium text-card-foreground">
@@ -504,7 +511,7 @@ const getStatusBadgeClass = (activa: boolean) => {
                 </label>
                 <div class="relative">
                   <input
-                    v-model.number="formData.tasa_interes"
+                    v-model.number="formData.interes_porcentaje"
                     type="number"
                     min="0"
                     max="100"
@@ -512,15 +519,15 @@ const getStatusBadgeClass = (activa: boolean) => {
                     placeholder="10"
                     :class="[
                       'w-full px-3 py-2 border rounded-lg bg-background text-foreground transition-colors pr-8',
-                      formErrors.tasa_interes ? 'border-red-500' : 'border-border focus:ring-primary',
+                      formErrors.interes_porcentaje ? 'border-red-500' : 'border-border focus:ring-primary',
                       'focus:ring-1 focus:border-transparent outline-none',
                     ]"
-                    @input="delete formErrors.tasa_interes"
+                    @input="delete formErrors.interes_porcentaje"
                   />
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
                 </div>
-                <p v-if="formErrors.tasa_interes" class="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-                  ⚠️ {{ formErrors.tasa_interes }}
+                <p v-if="formErrors.interes_porcentaje" class="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                  ⚠️ {{ formErrors.interes_porcentaje }}
                 </p>
                 <p class="mt-1 text-xs text-muted">Porcentaje del monto total. Ej: 10% de Q1,000 = Q100</p>
               </div>
@@ -532,7 +539,7 @@ const getStatusBadgeClass = (activa: boolean) => {
                 </label>
                 <div class="relative">
                   <input
-                    v-model.number="formData.tasa_mora_diaria"
+                    v-model.number="formData.mora_porcentaje"
                     type="number"
                     min="0"
                     max="100"
@@ -540,15 +547,15 @@ const getStatusBadgeClass = (activa: boolean) => {
                     placeholder="2"
                     :class="[
                       'w-full px-3 py-2 border rounded-lg bg-background text-foreground transition-colors pr-8',
-                      formErrors.tasa_mora_diaria ? 'border-red-500' : 'border-border focus:ring-primary',
+                      formErrors.mora_porcentaje ? 'border-red-500' : 'border-border focus:ring-primary',
                       'focus:ring-1 focus:border-transparent outline-none',
                     ]"
-                    @input="delete formErrors.tasa_mora_diaria"
+                    @input="delete formErrors.mora_porcentaje"
                   />
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
                 </div>
-                <p v-if="formErrors.tasa_mora_diaria" class="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-                  ⚠️ {{ formErrors.tasa_mora_diaria }}
+                <p v-if="formErrors.mora_porcentaje" class="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                  ⚠️ {{ formErrors.mora_porcentaje }}
                 </p>
               </div>
 
@@ -656,27 +663,27 @@ const getStatusBadgeClass = (activa: boolean) => {
             <div v-if="simulacion.resultado" class="mt-3 bg-white dark:bg-gray-900 border-l-4 border-green-500 p-3 rounded">
               <div class="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span class="text-gray-600 dark:text-gray-400">Cuota por pago</span>
+                  <span class="text-gray-600 dark:text-gray-400">Monto por cuota</span>
                   <p class="text-lg font-bold text-gray-900 dark:text-white">
-                    {{ formatCurrency(simulacion.resultado.cuota_monto) }}
+                    {{ formatCurrency(simulacion.resultado.monto_por_cuota) }}
                   </p>
                 </div>
                 <div>
-                  <span class="text-gray-600 dark:text-gray-400">Total a cobrar</span>
+                  <span class="text-gray-600 dark:text-gray-400">Total a pagar</span>
                   <p class="text-lg font-bold text-gray-900 dark:text-white">
-                    {{ formatCurrency(simulacion.resultado.total_cobrar) }}
+                    {{ formatCurrency(simulacion.resultado.total_pagar) }}
                   </p>
                 </div>
                 <div>
-                  <span class="text-gray-600 dark:text-gray-400">Interés total</span>
+                  <span class="text-gray-600 dark:text-gray-400">Interés</span>
                   <p class="text-base font-semibold text-green-600 dark:text-green-400">
-                    + {{ formatCurrency(simulacion.resultado.interes_total) }}
+                    + {{ formatCurrency(simulacion.resultado.interes_monto_calculado) }}
                   </p>
                 </div>
                 <div>
                   <span class="text-gray-600 dark:text-gray-400">Mora por atraso</span>
                   <p class="text-base font-semibold text-orange-600 dark:text-orange-400">
-                    + {{ formatCurrency(simulacion.resultado.mora_por_cuota_atraso) }}
+                    + {{ formatCurrency(simulacion.resultado.mora_por_cuota_atrasada) }}
                   </p>
                 </div>
               </div>

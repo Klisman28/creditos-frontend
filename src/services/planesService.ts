@@ -3,8 +3,8 @@ import apiClient from '@/apiClient'
 export interface Plantilla {
   id: number;
   nombre: string;
-  tasa_interes: number;
-  tasa_mora_diaria: number;
+  interes_porcentaje: number;
+  mora_porcentaje: number;
   frecuencia_dias: number;
   descripcion?: string;
   activa: boolean;
@@ -14,18 +14,20 @@ export interface Plantilla {
 }
 
 export interface SimulacionPlan {
-  monto: number;
+  capital_ejemplo: number;
+  interes_porcentaje: number;
+  interes_monto_calculado: number;
+  total_pagar: number;
   cuotas: number;
-  cuota_monto: number;
-  total_cobrar: number;
-  interes_total: number;
-  mora_por_cuota_atraso: number;
+  monto_por_cuota: number;
+  mora_porcentaje: number;
+  mora_por_cuota_atrasada: number;
 }
 
 export interface CreatePlantillaRequest {
   nombre: string;
-  tasa_interes: number;
-  tasa_mora_diaria: number;
+  interes_porcentaje: number;
+  mora_porcentaje: number;
   frecuencia_dias: number;
   descripcion?: string;
   activa: boolean;
@@ -33,8 +35,8 @@ export interface CreatePlantillaRequest {
 
 export interface UpdatePlantillaRequest {
   nombre?: string;
-  tasa_interes?: number;
-  tasa_mora_diaria?: number;
+  interes_porcentaje?: number;
+  mora_porcentaje?: number;
   frecuencia_dias?: number;
   descripcion?: string;
   activa?: boolean;
@@ -54,12 +56,12 @@ const planesService = {
   create: (data: CreatePlantillaRequest) => apiClient.post<Plantilla>('/planes/', data).then(r => r.data),
   update: (id: number, data: UpdatePlantillaRequest) => apiClient.put<Plantilla>(`/planes/${id}`, data).then(r => r.data),
   remove: (id: number) => apiClient.delete(`/planes/${id}`).then(r => r.data),
-  simular: (params: {
-    monto: number;
+  simular: (data: {
+    monto_ejemplo: number;
     cuotas: number;
-    tasa_interes: number;
-    tasa_mora_diaria: number;
-  }) => apiClient.post<SimulacionPlan>('/planes/simular', null, { params }).then(r => r.data),
+    interes_porcentaje: number;
+    mora_porcentaje: number;
+  }) => apiClient.post<SimulacionPlan>('/planes/simular', data).then(r => r.data),
 }
 
 export default planesService
