@@ -417,10 +417,64 @@ const handleCreatePrestamo = async () => {
           <div class="w-10 h-10 border-4 rounded-full border-border animate-spin border-t-primary mx-auto mb-4"></div>
           <p class="text-sm text-muted">Cargando préstamos...</p>
         </div>
-        <div v-else-if="filteredPrestamos.length === 0" class="p-12 text-center">
-          <Icon name="FileX" :size="48" class="text-muted mx-auto mb-4" />
-          <h4 class="text-lg font-semibold text-card-foreground mb-2">No se encontraron préstamos</h4>
-          <p class="text-sm text-muted">Intenta con otro filtro o término de búsqueda</p>
+        <div v-else-if="filteredPrestamos.length === 0" class="py-16 px-8 flex flex-col items-center justify-center gap-4">
+          <!-- Icono contextual -->
+          <div :class="[
+            'w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm',
+            searchQuery ? 'bg-amber-50 dark:bg-amber-500/10' :
+            activeFilter === 'mora' ? 'bg-red-50 dark:bg-red-500/10' :
+            activeFilter === 'vencidos' ? 'bg-gray-100 dark:bg-gray-500/10' :
+            activeFilter === 'aprobados_hoy' ? 'bg-emerald-50 dark:bg-emerald-500/10' :
+            'bg-primary/5'
+          ]">
+            <Icon
+              :name="searchQuery ? 'SearchX' : activeFilter === 'mora' ? 'AlertCircle' : activeFilter === 'vencidos' ? 'CheckCircle2' : activeFilter === 'aprobados_hoy' ? 'CalendarCheck' : activeFilter === 'pendientes' ? 'Clock' : 'FileText'"
+              :size="28"
+              :class="searchQuery ? 'text-amber-500' : activeFilter === 'mora' ? 'text-red-400' : activeFilter === 'vencidos' ? 'text-gray-400' : activeFilter === 'aprobados_hoy' ? 'text-emerald-500' : 'text-primary/40'"
+            />
+          </div>
+
+          <!-- Texto contextual -->
+          <div class="text-center max-w-xs">
+            <h4 class="text-base font-semibold text-card-foreground mb-1">
+              {{ searchQuery
+                ? `Sin resultados para "${searchQuery}"`
+                : activeFilter === 'mora' ? 'Sin préstamos en mora'
+                : activeFilter === 'vencidos' ? 'Sin préstamos vencidos'
+                : activeFilter === 'aprobados_hoy' ? 'Sin desembolsos hoy'
+                : activeFilter === 'pendientes' ? 'Sin préstamos pendientes'
+                : activeFilter === 'activos' ? 'Sin préstamos activos'
+                : 'Sin préstamos registrados'
+              }}
+            </h4>
+            <p class="text-sm text-muted">
+              {{ searchQuery
+                ? 'Prueba con otro nombre, cédula o ID'
+                : activeFilter !== 'todos' ? 'No hay préstamos que coincidan con este filtro'
+                : 'Crea el primer préstamo usando el botón de arriba'
+              }}
+            </p>
+          </div>
+
+          <!-- CTA -->
+          <div class="flex gap-2 mt-1">
+            <button
+              v-if="searchQuery || activeFilter !== 'todos'"
+              @click="searchQuery = ''; activeFilter = 'todos'; currentPage = 1"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted hover:text-card-foreground hover:bg-hover transition-all"
+            >
+              <Icon name="X" :size="12" />
+              Limpiar filtros
+            </button>
+            <button
+              v-if="!searchQuery && activeFilter === 'todos' && esAdmin"
+              @click="showModal = true"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+            >
+              <Icon name="Plus" :size="12" />
+              Nuevo préstamo
+            </button>
+          </div>
         </div>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
