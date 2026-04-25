@@ -29,8 +29,7 @@ interface PlanOption {
   frecuencia_dias: number;
   descripcion?: string;
   activa: boolean;
-  cuotas_default?: number;
-  // Legacy fields para backward compatibility
+  // Legacy fields
   interes?: number | null;
   cuota?: number | null;
   total?: number | null;
@@ -56,6 +55,7 @@ const newPrestamo = ref({
   cliente_id: null as number | null,
   cliente_nombre: "",
   monto: null as number | null,
+  cuotas: null as number | null,
   plan_id: null as number | null,
   fecha_inicio: new Date().toISOString().split("T")[0],
   fecha_desembolso: new Date().toISOString().split("T")[0],
@@ -64,19 +64,13 @@ const newPrestamo = ref({
   tipo: 1 as 1 | 2 | 3,
 });
 
-// Calcular fecha de finalización automáticamente: fecha_inicio + (cuotas * frecuencia_dias)
+// fecha_fin = fecha_inicio + (cuotas ingresadas * frecuencia_dias del plan)
 const fechaFinCalculada = computed(() => {
-  if (!newPrestamo.value.fecha_inicio || !selectedPlan.value) return null;
-
+  if (!newPrestamo.value.fecha_inicio || !selectedPlan.value || !newPrestamo.value.cuotas) return null;
   const inicio = new Date(newPrestamo.value.fecha_inicio + "T00:00:00");
-  const cuotas = selectedPlan.value.cuotas_default ?? 12;
-  const frecuencia = selectedPlan.value.frecuencia_dias ?? 30;
-
-  // fecha_fin = fecha_inicio + (cuotas * frecuencia_dias)
-  const diasTotales = cuotas * frecuencia;
+  const diasTotales = newPrestamo.value.cuotas * (selectedPlan.value.frecuencia_dias ?? 30);
   const fin = new Date(inicio);
   fin.setDate(fin.getDate() + diasTotales);
-
   return fin.toISOString().split("T")[0];
 });
 
@@ -115,20 +109,15 @@ const totalPagar = computed(() => {
   return newPrestamo.value.monto + interesMonto.value;
 });
 
-// Cuotas default del plan o 12 si no existe
-const cuotasDefault = computed(() => {
-  return selectedPlan.value?.cuotas_default ?? 12;
-});
-
-// Cuota estimada = total / cuotas
+// Cuota estimada = total / cuotas ingresadas por el usuario
 const cuotaEstimada = computed(() => {
   if (!selectedPlan.value || !newPrestamo.value.monto) return null;
-  if (cuotasDefault.value <= 0) return null;
-  return totalPagar.value / cuotasDefault.value;
+  if (!newPrestamo.value.cuotas || newPrestamo.value.cuotas <= 0) return null;
+  return totalPagar.value / newPrestamo.value.cuotas;
 });
 
-// Auto-update fecha_fin when plan or fecha_inicio changes
-watch([() => newPrestamo.value.fecha_inicio, () => newPrestamo.value.plan_id], () => {
+// Recalcular fecha_fin cuando cambia fecha_inicio, plan o cuotas
+watch([() => newPrestamo.value.fecha_inicio, () => newPrestamo.value.plan_id, () => newPrestamo.value.cuotas], () => {
   if (fechaFinCalculada.value) {
     newPrestamo.value.fecha_fin = fechaFinCalculada.value;
   }
@@ -277,7 +266,7 @@ const filterTabs = computed(() =>
 
 const resetForm = () => {
   newPrestamo.value = {
-    cliente_id: null, cliente_nombre: "", monto: null, plan_id: null,
+    cliente_id: null, cliente_nombre: "", monto: null, cuotas: null, plan_id: null,
     fecha_inicio: new Date().toISOString().split("T")[0],
     fecha_desembolso: new Date().toISOString().split("T")[0],
     fecha_fin: null,
@@ -304,6 +293,11 @@ const handleCreatePrestamo = async () => {
     return;
   }
 
+  if (!newPrestamo.value.cuotas || newPrestamo.value.cuotas < 1) {
+    push.error("Ingresa el número de cuotas (mínimo 1)");
+    return;
+  }
+
   if (!selectedPlan.value) {
     push.error("El plan seleccionado no existe");
     return;
@@ -311,32 +305,26 @@ const handleCreatePrestamo = async () => {
 
   saving.value = true;
   try {
-    // Construir payload con snapshot del plan
     const payload: CreatePrestamoPayload = {
       cliente_id: newPrestamo.value.cliente_id,
       plan_id: newPrestamo.value.plan_id,
       monto: newPrestamo.value.monto,
+      cuotas: newPrestamo.value.cuotas,
       fecha_inicio: newPrestamo.value.fecha_inicio || undefined,
       fecha_desembolso: newPrestamo.value.fecha_desembolso || undefined,
+      fecha_fin: newPrestamo.value.fecha_fin || undefined,
       tipo: newPrestamo.value.tipo,
       observaciones: newPrestamo.value.observaciones || undefined,
-      // SNAPSHOT del plan (para auditoría e inmutabilidad)
       plan_snapshot: {
-        interes_porcentaje: selectedPlan.value.interes_porcentaje,
-        mora_porcentaje: selectedPlan.value.mora_porcentaje,
-        frecuencia_dias: selectedPlan.value.frecuencia_dias,
-        nombre: selectedPlan.value.nombre,
+        interes_porcentaje_aplicado: selectedPlan.value.interes_porcentaje,
+        mora_porcentaje_aplicado: selectedPlan.value.mora_porcentaje,
+        frecuencia_dias_aplicada: selectedPlan.value.frecuencia_dias,
+        cuotas_aplicadas: newPrestamo.value.cuotas,
+        nombre_plan: selectedPlan.value.nombre,
       },
-      // Valores calculados (referencia)
       interes_monto_calculado: interesMonto.value,
       total_pagar_calculado: totalPagar.value,
-    } as any; // Allow fecha_fin to be set below
-
-    // Agregar fecha_fin si existe
-    if (newPrestamo.value.fecha_fin) {
-      (payload as any).fecha_fin = newPrestamo.value.fecha_fin;
-    }
-
+    };
     await prestamosService.create(payload);
     push.success(`Préstamo creado a nombre de ${newPrestamo.value.cliente_nombre}`);
     showModal.value = false;
@@ -764,12 +752,25 @@ const handleCreatePrestamo = async () => {
                   placeholder="0.00" />
                 <p v-if="!newPrestamo.plan_id" class="text-xs text-muted mt-1.5">Selecciona un plan primero</p>
               </div>
+
+              <!-- Cuotas (REQUERIDO) -->
+              <div>
+                <label class="block text-xs font-medium text-muted mb-1.5">Cuotas *</label>
+                <input v-model.number="newPrestamo.cuotas" type="number" step="1" min="1" max="240" required
+                  :disabled="!newPrestamo.plan_id"
+                  class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Ej: 4" />
+                <p v-if="newPrestamo.plan_id && newPrestamo.cuotas && selectedPlan" class="text-xs text-muted mt-1.5">
+                  {{ newPrestamo.cuotas }} pagos cada {{ selectedPlan.frecuencia_dias }} días
+                </p>
+                <p v-else-if="!newPrestamo.plan_id" class="text-xs text-muted mt-1.5">Selecciona un plan primero</p>
+              </div>
               <!-- Plan summary when selected -->
               <div v-if="selectedPlan" class="sm:col-span-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4">
                 <p class="text-xs font-bold text-blue-900 dark:text-blue-100 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                   <Icon name="FileText" :size="13" /> Plan Seleccionado
                 </p>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="grid grid-cols-3 gap-3">
                   <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
                     <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Tasa Interés</p>
                     <p class="font-bold text-emerald-600">{{ selectedPlan.interes_porcentaje }}%</p>
@@ -781,10 +782,6 @@ const handleCreatePrestamo = async () => {
                   <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
                     <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Frecuencia</p>
                     <p class="font-bold text-purple-600">c/{{ selectedPlan.frecuencia_dias }}d</p>
-                  </div>
-                  <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
-                    <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Cuotas Def.</p>
-                    <p class="font-bold text-blue-600">{{ cuotasDefault }}</p>
                   </div>
                 </div>
               </div>
@@ -819,8 +816,8 @@ const handleCreatePrestamo = async () => {
               <div>
                 <label class="block text-xs font-medium text-muted mb-1.5">
                   Fecha de Finalización
-                  <span v-if="selectedPlan" class="text-[10px] text-muted ml-1">
-                    ({{ selectedPlan.cuotas_default ?? 12 }} cuotas × {{ selectedPlan.frecuencia_dias ?? 30 }} días)
+                  <span v-if="selectedPlan && newPrestamo.cuotas" class="text-[10px] text-muted ml-1">
+                    ({{ newPrestamo.cuotas }} cuotas × {{ selectedPlan.frecuencia_dias ?? 30 }} días)
                   </span>
                 </label>
                 <input v-model="newPrestamo.fecha_fin" type="date"
@@ -841,9 +838,9 @@ const handleCreatePrestamo = async () => {
           </div>
 
           <!-- Summary -->
-          <div v-if="newPrestamo.monto && selectedPlan" class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-500/10 dark:to-blue-500/5 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4">
+          <div v-if="newPrestamo.monto && selectedPlan && newPrestamo.cuotas" class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-500/10 dark:to-blue-500/5 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4">
             <h4 class="text-xs font-semibold text-blue-900 dark:text-blue-100 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <Icon name="DollarSign" :size="14" /> Resumen Simulado
+              <Icon name="DollarSign" :size="14" /> Resumen del Préstamo
             </h4>
             <div class="space-y-2">
               <div class="flex justify-between text-sm">
@@ -851,12 +848,16 @@ const handleCreatePrestamo = async () => {
                 <span class="font-semibold">{{ formatMoney(newPrestamo.monto) }}</span>
               </div>
               <div class="flex justify-between text-sm">
-                <span class="text-muted">Interés ({{ selectedPlan.interes_porcentaje }}% del plan)</span>
+                <span class="text-muted">Interés ({{ selectedPlan.interes_porcentaje }}%)</span>
                 <span class="font-semibold text-green-600">+ {{ formatMoney(interesMonto) }}</span>
               </div>
               <div class="flex justify-between text-sm">
-                <span class="text-muted">Cuota estimada</span>
-                <span class="font-semibold">{{ cuotaEstimada ? formatMoney(cuotaEstimada) : '—' }}</span>
+                <span class="text-muted">Cuotas</span>
+                <span class="font-semibold">{{ newPrestamo.cuotas }} × {{ formatMoney(cuotaEstimada) }}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-muted">Frecuencia de pago</span>
+                <span class="font-semibold">Cada {{ selectedPlan.frecuencia_dias }} días</span>
               </div>
               <hr class="border-blue-200 dark:border-blue-500/20" />
               <div class="flex justify-between text-sm">

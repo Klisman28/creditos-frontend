@@ -1,0 +1,1 @@
+import{y as s}from"./index-BGt-MPr5.js";const r={async getAll(e={limit:500}){return(await s.get("/clientes/",{params:e})).data},async getById(e){return(await s.get(`/clientes/${e}`)).data},async create(e){return(await s.post("/clientes/",e)).data},async update(e,t){return(await s.put(`/clientes/${e}`,t)).data}};export{r as c};

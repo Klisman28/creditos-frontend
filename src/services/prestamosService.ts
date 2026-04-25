@@ -9,8 +9,7 @@ export interface Plan {
   frecuencia_dias: number;
   descripcion?: string;
   activa: boolean;
-  cuotas_default?: number;
-  // Legacy fields (deprecated, keep for backward compatibility)
+  // Legacy fields (deprecated)
   monto?: number;
   interes?: number;
   plazo?: number;
@@ -54,19 +53,19 @@ export interface CreatePrestamoPayload {
   cliente_id: number;
   plan_id: number;
   monto: number;
+  cuotas: number;
   fecha_inicio?: string;
   fecha_desembolso?: string;
   fecha_fin?: string;
   tipo: 1 | 2 | 3;
   observaciones?: string;
-  // Snapshot del plan (para auditoría e inmutabilidad)
   plan_snapshot?: {
-    interes_porcentaje: number;
-    mora_porcentaje: number;
-    frecuencia_dias: number;
-    nombre: string;
+    interes_porcentaje_aplicado: number;
+    mora_porcentaje_aplicado: number;
+    frecuencia_dias_aplicada: number;
+    cuotas_aplicadas: number;
+    nombre_plan: string;
   };
-  // Valores calculados (para referencia)
   interes_monto_calculado?: number;
   total_pagar_calculado?: number;
 }
