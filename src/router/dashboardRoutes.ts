@@ -136,4 +136,18 @@ export const dashboardRoutes: RouteRecordRaw[] = [
     component: () => import("@/pages/creditos/ConfiguracionPage.vue"),
     meta: { title: "Configuración", roles: ["administrador"] }
   },
+
+  // ── Caja ─────────────────────────────────────────────────────
+  {
+    name: "caja",
+    path: "/caja",
+    component: () => import("@/pages/creditos/CajaPage.vue"),
+    meta: { title: "Caja" }
+  },
+  {
+    name: "cajaHistorial",
+    path: "/caja/sesiones",
+    component: () => import("@/pages/creditos/CajaHistorialPage.vue"),
+    meta: { title: "Historial de Caja", roles: ["administrador"] }
+  },
 ];

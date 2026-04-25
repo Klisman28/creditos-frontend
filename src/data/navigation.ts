@@ -36,6 +36,14 @@ export const navigation: NavGroup[] = [
         label: "Pagos",
         route: "/pagos",
       },
+      {
+        icon: "Vault",
+        label: "Caja",
+        children: [
+          { label: "Caja Activa", route: "/caja" },
+          { label: "Historial de Sesiones", route: "/caja/sesiones", roles: ["administrador"] },
+        ],
+      },
     ]
   },
   {
