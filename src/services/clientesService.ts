@@ -39,6 +39,8 @@ export interface Prestamo {
 
 export interface Cliente {
   id: number;
+  nombre?: string;
+  dpi?: string | null;
   fecha_ingreso: string | null;
   empresa_trabajo: string | null;
   direccion_trabajo?: string | null;

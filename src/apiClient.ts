@@ -42,7 +42,11 @@ apiClient.interceptors.response.use(
       }
       push.error(msg)
     } else if (status === 500) {
-      push.error('Error interno del servidor. Intenta de nuevo más tarde.')
+      const detail = error.response?.data?.detail
+      const msg = typeof detail === 'string'
+        ? detail
+        : (typeof detail === 'object' ? JSON.stringify(detail) : 'Error interno del servidor')
+      push.error(msg || 'Error interno del servidor. Intenta de nuevo más tarde.')
     }
 
     return Promise.reject(error)

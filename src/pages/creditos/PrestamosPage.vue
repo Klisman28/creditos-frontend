@@ -29,8 +29,7 @@ interface PlanOption {
   frecuencia_dias: number;
   descripcion?: string;
   activa: boolean;
-  cuotas_default?: number;
-  // Legacy fields para backward compatibility
+  // Legacy fields
   interes?: number | null;
   cuota?: number | null;
   total?: number | null;
@@ -56,6 +55,7 @@ const newPrestamo = ref({
   cliente_id: null as number | null,
   cliente_nombre: "",
   monto: null as number | null,
+  cuotas: null as number | null,
   plan_id: null as number | null,
   fecha_inicio: new Date().toISOString().split("T")[0],
   fecha_desembolso: new Date().toISOString().split("T")[0],
@@ -64,19 +64,13 @@ const newPrestamo = ref({
   tipo: 1 as 1 | 2 | 3,
 });
 
-// Calcular fecha de finalización automáticamente: fecha_inicio + (cuotas * frecuencia_dias)
+// fecha_fin = fecha_inicio + (cuotas ingresadas * frecuencia_dias del plan)
 const fechaFinCalculada = computed(() => {
-  if (!newPrestamo.value.fecha_inicio || !selectedPlan.value) return null;
-
+  if (!newPrestamo.value.fecha_inicio || !selectedPlan.value || !newPrestamo.value.cuotas) return null;
   const inicio = new Date(newPrestamo.value.fecha_inicio + "T00:00:00");
-  const cuotas = selectedPlan.value.cuotas_default ?? 12;
-  const frecuencia = selectedPlan.value.frecuencia_dias ?? 30;
-
-  // fecha_fin = fecha_inicio + (cuotas * frecuencia_dias)
-  const diasTotales = cuotas * frecuencia;
+  const diasTotales = newPrestamo.value.cuotas * (selectedPlan.value.frecuencia_dias ?? 30);
   const fin = new Date(inicio);
   fin.setDate(fin.getDate() + diasTotales);
-
   return fin.toISOString().split("T")[0];
 });
 
@@ -115,20 +109,15 @@ const totalPagar = computed(() => {
   return newPrestamo.value.monto + interesMonto.value;
 });
 
-// Cuotas default del plan o 12 si no existe
-const cuotasDefault = computed(() => {
-  return selectedPlan.value?.cuotas_default ?? 12;
-});
-
-// Cuota estimada = total / cuotas
+// Cuota estimada = total / cuotas ingresadas por el usuario
 const cuotaEstimada = computed(() => {
   if (!selectedPlan.value || !newPrestamo.value.monto) return null;
-  if (cuotasDefault.value <= 0) return null;
-  return totalPagar.value / cuotasDefault.value;
+  if (!newPrestamo.value.cuotas || newPrestamo.value.cuotas <= 0) return null;
+  return totalPagar.value / newPrestamo.value.cuotas;
 });
 
-// Auto-update fecha_fin when plan or fecha_inicio changes
-watch([() => newPrestamo.value.fecha_inicio, () => newPrestamo.value.plan_id], () => {
+// Recalcular fecha_fin cuando cambia fecha_inicio, plan o cuotas
+watch([() => newPrestamo.value.fecha_inicio, () => newPrestamo.value.plan_id, () => newPrestamo.value.cuotas], () => {
   if (fechaFinCalculada.value) {
     newPrestamo.value.fecha_fin = fechaFinCalculada.value;
   }
@@ -217,8 +206,50 @@ const getStatusBadge = (p: Prestamo) => {
 };
 
 const getInitials = (cliente: Cliente | null) => {
-  if (!cliente?.persona) return "??";
-  return `${(cliente.persona.nombre || "?")[0]}${(cliente.persona.apellido || "?")[0]}`.toUpperCase();
+  const nombre = cliente?.nombre || cliente?.persona?.nombre || "";
+  const apellido = (cliente?.persona as any)?.apellido || "";
+  if (!nombre) return "??";
+  return `${nombre[0]}${apellido ? apellido[0] : (nombre[1] || "")}`.toUpperCase();
+};
+
+const AVATAR_COLORS = [
+  "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+  "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
+  "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300",
+  "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300",
+  "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
+];
+const getAvatarColor = (id: number | undefined) => AVATAR_COLORS[(id || 0) % AVATAR_COLORS.length];
+
+const getMoraSeverity = (mora: number | null | undefined) => {
+  const m = mora || 0;
+  if (m <= 0) return null;
+  if (m < 50) return { label: "Leve", dotClass: "bg-amber-400", rowClass: "" };
+  if (m < 150) return { label: "Moderada", dotClass: "bg-orange-500", rowClass: "border-l-2 border-l-orange-400" };
+  return { label: "Alta", dotClass: "bg-red-500", rowClass: "border-l-2 border-l-red-500 bg-red-500/[0.02]" };
+};
+
+const formatRelativeDate = (dateStr: string | null) => {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr + "T00:00:00");
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Ayer";
+  if (diffDays < 30) return `hace ${diffDays}d`;
+  if (diffDays < 365) return `hace ${Math.floor(diffDays / 30)}m`;
+  return `hace ${Math.floor(diffDays / 365)}a`;
+};
+
+const getCapitalProgress = (p: Prestamo) => {
+  const total = p.monto || 0;
+  if (total === 0) return 0;
+  const recuperado = p.capital_recuperado || 0;
+  return Math.min(100, Math.max(0, (recuperado / total) * 100));
 };
 
 const ALL_FILTER_TABS = [
@@ -235,7 +266,7 @@ const filterTabs = computed(() =>
 
 const resetForm = () => {
   newPrestamo.value = {
-    cliente_id: null, cliente_nombre: "", monto: null, plan_id: null,
+    cliente_id: null, cliente_nombre: "", monto: null, cuotas: null, plan_id: null,
     fecha_inicio: new Date().toISOString().split("T")[0],
     fecha_desembolso: new Date().toISOString().split("T")[0],
     fecha_fin: null,
@@ -262,6 +293,11 @@ const handleCreatePrestamo = async () => {
     return;
   }
 
+  if (!newPrestamo.value.cuotas || newPrestamo.value.cuotas < 1) {
+    push.error("Ingresa el número de cuotas (mínimo 1)");
+    return;
+  }
+
   if (!selectedPlan.value) {
     push.error("El plan seleccionado no existe");
     return;
@@ -269,32 +305,26 @@ const handleCreatePrestamo = async () => {
 
   saving.value = true;
   try {
-    // Construir payload con snapshot del plan
     const payload: CreatePrestamoPayload = {
       cliente_id: newPrestamo.value.cliente_id,
       plan_id: newPrestamo.value.plan_id,
       monto: newPrestamo.value.monto,
+      cuotas: newPrestamo.value.cuotas,
       fecha_inicio: newPrestamo.value.fecha_inicio || undefined,
       fecha_desembolso: newPrestamo.value.fecha_desembolso || undefined,
+      fecha_fin: newPrestamo.value.fecha_fin || undefined,
       tipo: newPrestamo.value.tipo,
       observaciones: newPrestamo.value.observaciones || undefined,
-      // SNAPSHOT del plan (para auditoría e inmutabilidad)
       plan_snapshot: {
-        interes_porcentaje: selectedPlan.value.interes_porcentaje,
-        mora_porcentaje: selectedPlan.value.mora_porcentaje,
-        frecuencia_dias: selectedPlan.value.frecuencia_dias,
-        nombre: selectedPlan.value.nombre,
+        interes_porcentaje_aplicado: selectedPlan.value.interes_porcentaje,
+        mora_porcentaje_aplicado: selectedPlan.value.mora_porcentaje,
+        frecuencia_dias_aplicada: selectedPlan.value.frecuencia_dias,
+        cuotas_aplicadas: newPrestamo.value.cuotas,
+        nombre_plan: selectedPlan.value.nombre,
       },
-      // Valores calculados (referencia)
       interes_monto_calculado: interesMonto.value,
       total_pagar_calculado: totalPagar.value,
-    } as any; // Allow fecha_fin to be set below
-
-    // Agregar fecha_fin si existe
-    if (newPrestamo.value.fecha_fin) {
-      (payload as any).fecha_fin = newPrestamo.value.fecha_fin;
-    }
-
+    };
     await prestamosService.create(payload);
     push.success(`Préstamo creado a nombre de ${newPrestamo.value.cliente_nombre}`);
     showModal.value = false;
@@ -417,10 +447,64 @@ const handleCreatePrestamo = async () => {
           <div class="w-10 h-10 border-4 rounded-full border-border animate-spin border-t-primary mx-auto mb-4"></div>
           <p class="text-sm text-muted">Cargando préstamos...</p>
         </div>
-        <div v-else-if="filteredPrestamos.length === 0" class="p-12 text-center">
-          <Icon name="FileX" :size="48" class="text-muted mx-auto mb-4" />
-          <h4 class="text-lg font-semibold text-card-foreground mb-2">No se encontraron préstamos</h4>
-          <p class="text-sm text-muted">Intenta con otro filtro o término de búsqueda</p>
+        <div v-else-if="filteredPrestamos.length === 0" class="py-16 px-8 flex flex-col items-center justify-center gap-4">
+          <!-- Icono contextual -->
+          <div :class="[
+            'w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm',
+            searchQuery ? 'bg-amber-50 dark:bg-amber-500/10' :
+            activeFilter === 'mora' ? 'bg-red-50 dark:bg-red-500/10' :
+            activeFilter === 'vencidos' ? 'bg-gray-100 dark:bg-gray-500/10' :
+            activeFilter === 'aprobados_hoy' ? 'bg-emerald-50 dark:bg-emerald-500/10' :
+            'bg-primary/5'
+          ]">
+            <Icon
+              :name="searchQuery ? 'SearchX' : activeFilter === 'mora' ? 'AlertCircle' : activeFilter === 'vencidos' ? 'CheckCircle2' : activeFilter === 'aprobados_hoy' ? 'CalendarCheck' : activeFilter === 'pendientes' ? 'Clock' : 'FileText'"
+              :size="28"
+              :class="searchQuery ? 'text-amber-500' : activeFilter === 'mora' ? 'text-red-400' : activeFilter === 'vencidos' ? 'text-gray-400' : activeFilter === 'aprobados_hoy' ? 'text-emerald-500' : 'text-primary/40'"
+            />
+          </div>
+
+          <!-- Texto contextual -->
+          <div class="text-center max-w-xs">
+            <h4 class="text-base font-semibold text-card-foreground mb-1">
+              {{ searchQuery
+                ? `Sin resultados para "${searchQuery}"`
+                : activeFilter === 'mora' ? 'Sin préstamos en mora'
+                : activeFilter === 'vencidos' ? 'Sin préstamos vencidos'
+                : activeFilter === 'aprobados_hoy' ? 'Sin desembolsos hoy'
+                : activeFilter === 'pendientes' ? 'Sin préstamos pendientes'
+                : activeFilter === 'activos' ? 'Sin préstamos activos'
+                : 'Sin préstamos registrados'
+              }}
+            </h4>
+            <p class="text-sm text-muted">
+              {{ searchQuery
+                ? 'Prueba con otro nombre, cédula o ID'
+                : activeFilter !== 'todos' ? 'No hay préstamos que coincidan con este filtro'
+                : 'Crea el primer préstamo usando el botón de arriba'
+              }}
+            </p>
+          </div>
+
+          <!-- CTA -->
+          <div class="flex gap-2 mt-1">
+            <button
+              v-if="searchQuery || activeFilter !== 'todos'"
+              @click="searchQuery = ''; activeFilter = 'todos'; currentPage = 1"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted hover:text-card-foreground hover:bg-hover transition-all"
+            >
+              <Icon name="X" :size="12" />
+              Limpiar filtros
+            </button>
+            <button
+              v-if="!searchQuery && activeFilter === 'todos' && esAdmin"
+              @click="showModal = true"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+            >
+              <Icon name="Plus" :size="12" />
+              Nuevo préstamo
+            </button>
+          </div>
         </div>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -438,60 +522,111 @@ const handleCreatePrestamo = async () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="prestamo in paginatedPrestamos" :key="prestamo.id"
-                class="border-b border-border last:border-0 transition-colors hover:bg-hover/50">
-                <td class="px-5 py-4">
+              <tr
+                v-for="prestamo in paginatedPrestamos" :key="prestamo.id"
+                :class="[
+                  'border-b border-border last:border-0 transition-all group',
+                  getMoraSeverity(prestamo.mora)?.rowClass || 'hover:bg-hover/40'
+                ]"
+              >
+                <!-- ID -->
+                <td class="px-5 py-3.5">
                   <span class="text-xs font-mono font-bold text-primary">#{{ prestamo.id }}</span>
                 </td>
-                <td class="px-5 py-4">
+
+                <!-- Cliente -->
+                <td class="px-5 py-3.5">
                   <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
+                    <div :class="['w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-transform group-hover:scale-105', getAvatarColor(prestamo.cliente_id)]">
                       {{ getInitials(prestamo.cliente) }}
                     </div>
                     <div>
-                      <p class="font-semibold text-card-foreground text-sm">
-                        {{ prestamo.cliente?.persona?.nombre || "—" }}
+                      <p class="font-semibold text-card-foreground text-sm leading-tight">
+                        {{ prestamo.cliente?.nombre || prestamo.cliente?.persona?.nombre || "—" }}
                       </p>
-                      <p class="text-xs text-muted">{{ prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
+                      <p class="text-[11px] text-muted mt-0.5">{{ prestamo.cliente?.dpi || prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
                     </div>
                   </div>
                 </td>
-                <td class="px-5 py-4 text-right font-semibold text-card-foreground">{{ formatMoney(prestamo.monto) }}</td>
-                <td class="px-5 py-4 text-right text-muted">{{ formatMoney(prestamo.capital_activo) }}</td>
-                <td class="px-5 py-4 text-right text-muted">{{ formatMoney(prestamo.saldo) }}</td>
-                <td class="px-5 py-4 text-right">
-                  <span :class="(prestamo.mora || 0) > 0 ? 'text-red-600 font-semibold' : 'text-muted'">
-                    {{ formatMoney(prestamo.mora) }}
+
+                <!-- Monto -->
+                <td class="px-5 py-3.5 text-right font-semibold text-card-foreground">
+                  {{ formatMoney(prestamo.monto) }}
+                </td>
+
+                <!-- Capital con barra de progreso -->
+                <td class="px-5 py-3.5 text-right">
+                  <p class="text-sm text-muted font-medium">{{ formatMoney(prestamo.capital_activo) }}</p>
+                  <div class="w-16 h-1 bg-border rounded-full mt-1 ml-auto overflow-hidden">
+                    <div
+                      class="h-full rounded-full transition-all"
+                      :class="getCapitalProgress(prestamo) >= 80 ? 'bg-emerald-500' : getCapitalProgress(prestamo) >= 40 ? 'bg-blue-500' : 'bg-primary/40'"
+                      :style="{ width: getCapitalProgress(prestamo) + '%' }"
+                    ></div>
+                  </div>
+                </td>
+
+                <!-- Saldo -->
+                <td class="px-5 py-3.5 text-right">
+                  <span
+                    :class="(prestamo.saldo || 0) < 0
+                      ? 'text-emerald-600 font-medium text-xs'
+                      : (prestamo.saldo || 0) === 0 ? 'text-muted text-sm' : 'text-muted text-sm'"
+                    :title="(prestamo.saldo || 0) < 0 ? 'Exceso de pagos' : ''"
+                  >
+                    {{ (prestamo.saldo || 0) < 0 ? 'Pagado+' : formatMoney(prestamo.saldo) }}
                   </span>
                 </td>
-                <td class="px-5 py-4 text-center">
-                  <span :class="[getStatusBadge(prestamo).class, 'px-2.5 py-1 rounded-full text-xs font-semibold']">
+
+                <!-- Mora con severidad -->
+                <td class="px-5 py-3.5 text-right">
+                  <div v-if="(prestamo.mora || 0) > 0" class="inline-flex items-center gap-1.5 justify-end">
+                    <span :class="['w-1.5 h-1.5 rounded-full flex-shrink-0', getMoraSeverity(prestamo.mora)?.dotClass]"></span>
+                    <span class="text-red-600 font-semibold text-sm">{{ formatMoney(prestamo.mora) }}</span>
+                  </div>
+                  <span v-else class="text-muted text-sm">—</span>
+                </td>
+
+                <!-- Estado -->
+                <td class="px-5 py-3.5 text-center">
+                  <span :class="[getStatusBadge(prestamo).class, 'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold']">
                     {{ getStatusBadge(prestamo).label }}
                   </span>
                 </td>
-                <td class="px-5 py-4 text-muted text-xs">{{ prestamo.fecha_inicio || "—" }}</td>
-                <td class="px-5 py-4">
-                  <div class="flex items-center justify-center gap-1">
+
+                <!-- Fecha relativa -->
+                <td class="px-5 py-3.5">
+                  <span
+                    class="text-xs text-muted cursor-default"
+                    :title="prestamo.fecha_inicio || ''"
+                  >
+                    {{ formatRelativeDate(prestamo.fecha_inicio) }}
+                  </span>
+                </td>
+
+                <!-- Acciones (visibles solo en hover) -->
+                <td class="px-5 py-3.5">
+                  <div class="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      class="p-1.5 rounded-lg transition-colors hover:bg-hover"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-primary/10"
                       title="Ver detalle"
                       @click="router.push({ name: 'prestamoDetalle', params: { id: prestamo.id } })"
                     >
-                      <Icon name="Eye" :size="16" class="text-muted hover:text-primary" />
+                      <Icon name="Eye" :size="15" class="text-muted hover:text-primary transition-colors" />
                     </button>
                     <button
-                      class="p-1.5 rounded-lg transition-colors hover:bg-hover"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-emerald-500/10"
                       title="Pagos"
                       @click="router.push({ name: 'prestamoDetalle', params: { id: prestamo.id }, query: { tab: 'pagos' } })"
                     >
-                      <Icon name="Receipt" :size="16" class="text-muted hover:text-emerald-500" />
+                      <Icon name="Receipt" :size="15" class="text-muted hover:text-emerald-500 transition-colors" />
                     </button>
                     <button
-                      class="p-1.5 rounded-lg transition-colors hover:bg-hover"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-amber-500/10"
                       title="Ficha"
                       @click="router.push({ name: 'prestamoDetalle', params: { id: prestamo.id }, query: { tab: 'ficha' } })"
                     >
-                      <Icon name="Printer" :size="16" class="text-muted hover:text-amber-500" />
+                      <Icon name="Printer" :size="15" class="text-muted hover:text-amber-500 transition-colors" />
                     </button>
                   </div>
                 </td>
@@ -617,12 +752,25 @@ const handleCreatePrestamo = async () => {
                   placeholder="0.00" />
                 <p v-if="!newPrestamo.plan_id" class="text-xs text-muted mt-1.5">Selecciona un plan primero</p>
               </div>
+
+              <!-- Cuotas (REQUERIDO) -->
+              <div>
+                <label class="block text-xs font-medium text-muted mb-1.5">Cuotas *</label>
+                <input v-model.number="newPrestamo.cuotas" type="number" step="1" min="1" max="240" required
+                  :disabled="!newPrestamo.plan_id"
+                  class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Ej: 4" />
+                <p v-if="newPrestamo.plan_id && newPrestamo.cuotas && selectedPlan" class="text-xs text-muted mt-1.5">
+                  {{ newPrestamo.cuotas }} pagos cada {{ selectedPlan.frecuencia_dias }} días
+                </p>
+                <p v-else-if="!newPrestamo.plan_id" class="text-xs text-muted mt-1.5">Selecciona un plan primero</p>
+              </div>
               <!-- Plan summary when selected -->
               <div v-if="selectedPlan" class="sm:col-span-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4">
                 <p class="text-xs font-bold text-blue-900 dark:text-blue-100 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                   <Icon name="FileText" :size="13" /> Plan Seleccionado
                 </p>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="grid grid-cols-3 gap-3">
                   <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
                     <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Tasa Interés</p>
                     <p class="font-bold text-emerald-600">{{ selectedPlan.interes_porcentaje }}%</p>
@@ -634,10 +782,6 @@ const handleCreatePrestamo = async () => {
                   <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
                     <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Frecuencia</p>
                     <p class="font-bold text-purple-600">c/{{ selectedPlan.frecuencia_dias }}d</p>
-                  </div>
-                  <div class="bg-white dark:bg-gray-900 rounded-lg p-2.5">
-                    <p class="text-[10px] text-muted uppercase font-semibold mb-0.5">Cuotas Def.</p>
-                    <p class="font-bold text-blue-600">{{ cuotasDefault }}</p>
                   </div>
                 </div>
               </div>
@@ -672,8 +816,8 @@ const handleCreatePrestamo = async () => {
               <div>
                 <label class="block text-xs font-medium text-muted mb-1.5">
                   Fecha de Finalización
-                  <span v-if="selectedPlan" class="text-[10px] text-muted ml-1">
-                    ({{ selectedPlan.cuotas_default ?? 12 }} cuotas × {{ selectedPlan.frecuencia_dias ?? 30 }} días)
+                  <span v-if="selectedPlan && newPrestamo.cuotas" class="text-[10px] text-muted ml-1">
+                    ({{ newPrestamo.cuotas }} cuotas × {{ selectedPlan.frecuencia_dias ?? 30 }} días)
                   </span>
                 </label>
                 <input v-model="newPrestamo.fecha_fin" type="date"
@@ -694,9 +838,9 @@ const handleCreatePrestamo = async () => {
           </div>
 
           <!-- Summary -->
-          <div v-if="newPrestamo.monto && selectedPlan" class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-500/10 dark:to-blue-500/5 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4">
+          <div v-if="newPrestamo.monto && selectedPlan && newPrestamo.cuotas" class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-500/10 dark:to-blue-500/5 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4">
             <h4 class="text-xs font-semibold text-blue-900 dark:text-blue-100 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <Icon name="DollarSign" :size="14" /> Resumen Simulado
+              <Icon name="DollarSign" :size="14" /> Resumen del Préstamo
             </h4>
             <div class="space-y-2">
               <div class="flex justify-between text-sm">
@@ -704,12 +848,16 @@ const handleCreatePrestamo = async () => {
                 <span class="font-semibold">{{ formatMoney(newPrestamo.monto) }}</span>
               </div>
               <div class="flex justify-between text-sm">
-                <span class="text-muted">Interés ({{ selectedPlan.interes_porcentaje }}% del plan)</span>
+                <span class="text-muted">Interés ({{ selectedPlan.interes_porcentaje }}%)</span>
                 <span class="font-semibold text-green-600">+ {{ formatMoney(interesMonto) }}</span>
               </div>
               <div class="flex justify-between text-sm">
-                <span class="text-muted">Cuota estimada</span>
-                <span class="font-semibold">{{ cuotaEstimada ? formatMoney(cuotaEstimada) : '—' }}</span>
+                <span class="text-muted">Cuotas</span>
+                <span class="font-semibold">{{ newPrestamo.cuotas }} × {{ formatMoney(cuotaEstimada) }}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-muted">Frecuencia de pago</span>
+                <span class="font-semibold">Cada {{ selectedPlan.frecuencia_dias }} días</span>
               </div>
               <hr class="border-blue-200 dark:border-blue-500/20" />
               <div class="flex justify-between text-sm">
