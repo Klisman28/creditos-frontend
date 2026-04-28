@@ -23,7 +23,7 @@ const router = createRouter({
     {
       path: "/",
       name: "Root",
-      redirect: () => ({ path: "/dashboard/panel" })
+      redirect: () => ({ path: "/login" })
     },
 
     // ── Landing page (template demo, out of main flow) ─────────
@@ -108,7 +108,7 @@ router.beforeEach(async (to, _from, next) => {
 
   // 2) Guest-only route (login, register…), user IS logged in → send to panel
   if (guestOnly && isAuthenticated) {
-    return next({ path: "/dashboard/panel", replace: true });
+    return next({ path: "/panel", replace: true });
   }
 
   // 3) Role-based guard: check meta.roles on the deepest matched route
