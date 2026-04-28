@@ -96,7 +96,13 @@ const formatDate = (dateStr: string | null) => {
 // ── NUEVOS COMPUTED PROPERTIES para banda resumen mejorada ────────────────────────────────────
 const cuotasPagadas = computed(() => (prestamo.value?.pagos ?? []).length);
 
-const cuotasTotal = computed(() => (prestamo.value?.fichas_pago ?? []).length);
+// Source of truth: prestamo.cuotas from DB (user-entered at creation).
+// fichas_pago.length is used as display fallback only when cuotas is null (legacy loans).
+const cuotasTotal = computed(() => {
+  const fromDB = prestamo.value?.cuotas;
+  if (fromDB && fromDB > 0) return fromDB;
+  return (prestamo.value?.fichas_pago ?? []).length;
+});
 
 const proximaCuotaFecha = computed(() => {
   const fichas = prestamo.value?.fichas_pago ?? [];  // ✅ Fallback a array vacío
@@ -418,9 +424,27 @@ const getFichaStatusBadgeClass = (id: number) => {
           
           <!-- Tab: Calendario (antes: Ficha) -->
           <div v-if="activeTab === 'calendario'" class="space-y-6">
+            <!-- Alerta si fichas generadas ≠ cuotas pactadas -->
+            <div
+              v-if="prestamo.cuotas && (prestamo.fichas_pago ?? []).length > 0 && (prestamo.fichas_pago ?? []).length !== prestamo.cuotas"
+              class="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-4 py-3 flex items-start gap-3"
+            >
+              <Icon name="AlertTriangle" :size="18" class="text-amber-600 mt-0.5 shrink-0" />
+              <p class="text-sm text-amber-800 dark:text-amber-300">
+                <strong>Inconsistencia detectada:</strong>
+                el crédito fue pactado con <strong>{{ prestamo.cuotas }}</strong> cuotas pero
+                el calendario tiene <strong>{{ (prestamo.fichas_pago ?? []).length }}</strong> fichas.
+                Usa <em>Regenerar</em> para corregirlo.
+              </p>
+            </div>
             <div class="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <div class="p-6 border-b border-border flex items-center justify-between bg-muted/5">
-                <h3 class="font-bold text-card-foreground">Ficha de Pago / Calendario de Cuotas</h3>
+                <div>
+                  <h3 class="font-bold text-card-foreground">Ficha de Pago / Calendario de Cuotas</h3>
+                  <p v-if="prestamo.cuotas" class="text-xs text-muted mt-0.5">
+                    {{ (prestamo.fichas_pago ?? []).length }} de {{ prestamo.cuotas }} cuotas pactadas
+                  </p>
+                </div>
                 <div class="flex items-center gap-2">
                   <Button v-if="esAdmin && prestamo?.plan_id" variant="outline" size="sm" class="gap-2" :disabled="generandoFichas" @click="regenerarFichas">
                     <Icon v-if="generandoFichas" name="Loader2" :size="14" class="animate-spin" />
@@ -510,6 +534,7 @@ const getFichaStatusBadgeClass = (id: number) => {
                   { label: 'Tipo de Préstamo', value: prestamo.tipo === 1 ? 'Normal' : 'Especial' },
                   { label: 'Clasificación', value: prestamo.clasificacion_id === 0 ? 'Normal (P)' : String.fromCharCode(64 + prestamo.clasificacion_id) },
                   { label: 'Plan de Pago', value: prestamo.plan?.nombre || '—' },
+                  { label: 'Cuotas Pactadas', value: prestamo.cuotas ? String(prestamo.cuotas) : '—' },
                   { label: 'Interés Total', value: formatMoney(prestamo.interes) },
                   { label: 'Mora Acumulada', value: formatMoney(prestamo.mora) },
                   { label: 'Fecha Inicio', value: formatDate(prestamo.fecha_inicio) },

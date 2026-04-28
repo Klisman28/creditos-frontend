@@ -37,6 +37,8 @@ export interface Prestamo {
   pagado: number;
   capital_recuperado: number;
   mora_recuperada: number;
+  /** Número de cuotas ingresado por el usuario al crear el préstamo. Fuente de verdad. */
+  cuotas: number | null;
   cliente: Cliente | null;
   plan: Plan | null;
 }
