@@ -430,15 +430,15 @@ const summaryCards = computed(() => [
           <table class="w-full text-sm">
             <thead>
               <tr class="bg-muted/30 border-b border-border">
-                <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">DPI</th>
-                <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Cliente</th>
-                <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Ruta</th>
-                <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Hora</th>
-                <th class="text-center px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Cod. Préstamo</th>
-                <th class="text-center px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">No. Cuota</th>
-                <th class="text-right px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Cuota</th>
-                <th class="text-center px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Estado</th>
-                <th class="text-center px-5 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Acciones</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider hidden sm:table-cell">DPI</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Cliente</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider hidden md:table-cell">Ruta</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider hidden lg:table-cell">Hora</th>
+                <th class="text-center px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider hidden sm:table-cell">Préstamo</th>
+                <th class="text-center px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider hidden md:table-cell">No. Cuota</th>
+                <th class="text-right px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Cuota</th>
+                <th class="text-center px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider hidden sm:table-cell">Estado</th>
+                <th class="text-center px-3 py-3 sm:px-5 sm:py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border">
@@ -447,24 +447,24 @@ const summaryCards = computed(() => [
                 :key="ficha.ficha_id"
                 class="transition-colors hover:bg-hover group"
               >
-                <td class="px-5 py-3.5 text-xs text-muted font-mono">{{ ficha.dpi }}</td>
-                <td class="px-5 py-3.5">
-                  <p class="font-medium text-card-foreground group-hover:text-primary transition-colors text-sm">{{ ficha.cliente }}</p>
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-xs text-muted font-mono hidden sm:table-cell">{{ ficha.dpi }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5">
+                  <p class="font-medium text-card-foreground group-hover:text-primary transition-colors text-sm truncate max-w-[130px] sm:max-w-none">{{ ficha.cliente }}</p>
                 </td>
-                <td class="px-5 py-3.5">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 hidden md:table-cell">
                   <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
                     {{ ficha.ruta }}
                   </span>
                 </td>
-                <td class="px-5 py-3.5 text-xs text-muted">{{ ficha.hora }}</td>
-                <td class="px-5 py-3.5 text-center">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-xs text-muted hidden lg:table-cell">{{ ficha.hora }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-center hidden sm:table-cell">
                   <span class="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-xs font-mono font-semibold text-card-foreground">
                     #{{ ficha.prestamo_id }}
                   </span>
                 </td>
-                <td class="px-5 py-3.5 text-center font-semibold text-card-foreground">{{ ficha.no_dia ?? "—" }}</td>
-                <td class="px-5 py-3.5 text-right font-semibold text-card-foreground">{{ formatCurrency(ficha.cuota) }}</td>
-                <td class="px-5 py-3.5 text-center">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-center font-semibold text-card-foreground hidden md:table-cell">{{ ficha.no_dia ?? "—" }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-right font-semibold text-card-foreground">{{ formatCurrency(ficha.cuota) }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-center hidden sm:table-cell">
                   <span
                     :class="[
                       'px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider',
@@ -476,19 +476,19 @@ const summaryCards = computed(() => [
                     {{ ficha.estado_label }}
                   </span>
                 </td>
-                <td class="px-5 py-3.5">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5">
                   <div class="flex gap-1 justify-center">
                     <button
                       v-if="ficha.estado === 0"
                       @click="openPagoModal(ficha)"
-                      class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
+                      class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
                       title="Efectuar Pago"
                     >
                       <Icon name="CheckCircle" :size="13" />
-                      Pagar
+                      <span class="hidden xs:inline">Pagar</span>
                     </button>
                     <span v-else class="text-xs text-emerald-500 flex items-center gap-1">
-                      <Icon name="CheckCircle" :size="13" /> Cobrado
+                      <Icon name="CheckCircle" :size="13" /> <span class="hidden sm:inline">Cobrado</span>
                     </span>
                   </div>
                 </td>
@@ -496,11 +496,12 @@ const summaryCards = computed(() => [
             </tbody>
             <tfoot>
               <tr class="bg-muted/20 border-t-2 border-border">
-                <td colspan="6" class="px-5 py-3 text-right text-xs font-semibold text-muted uppercase">Total:</td>
-                <td class="px-5 py-3 text-right font-bold text-card-foreground">
+                <td colspan="3" class="px-3 py-3 sm:px-5 text-right text-xs font-semibold text-muted uppercase sm:hidden">Total:</td>
+                <td colspan="6" class="px-5 py-3 text-right text-xs font-semibold text-muted uppercase hidden sm:table-cell">Total:</td>
+                <td class="px-3 py-3 sm:px-5 text-right font-bold text-card-foreground">
                   {{ formatCurrency(activeTab === "hoy" ? totalCuotaHoy : totalCuotaPendientes) }}
                 </td>
-                <td colspan="2"></td>
+                <td colspan="2" class="hidden sm:table-cell"></td>
               </tr>
             </tfoot>
           </table>

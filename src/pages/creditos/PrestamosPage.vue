@@ -446,16 +446,18 @@ const handleCreatePrestamo = async () => {
     <div class="col-span-12">
       <div class="rounded-xl border border-border bg-card p-5">
         <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-          <div class="flex items-center gap-1 bg-hover rounded-lg p-1">
-            <button
-              v-for="tab in filterTabs" :key="tab.key"
-              @click="activeFilter = tab.key; currentPage = 1"
-              :class="['flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all',
-                activeFilter === tab.key ? 'bg-card text-primary shadow-sm' : 'text-muted hover:text-card-foreground']"
-            >
-              <Icon :name="tab.icon" :size="14" />
-              {{ tab.label }}
-            </button>
+          <div class="overflow-x-auto -mx-1 px-1 pb-0.5 max-w-full">
+            <div class="flex items-center gap-1 bg-hover rounded-lg p-1 w-max">
+              <button
+                v-for="tab in filterTabs" :key="tab.key"
+                @click="activeFilter = tab.key; currentPage = 1"
+                :class="['flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all whitespace-nowrap',
+                  activeFilter === tab.key ? 'bg-card text-primary shadow-sm' : 'text-muted hover:text-card-foreground']"
+              >
+                <Icon :name="tab.icon" :size="14" />
+                <span class="hidden xs:inline sm:inline">{{ tab.label }}</span>
+              </button>
+            </div>
           </div>
           <div class="relative w-full lg:w-80">
             <Icon name="Search" :size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -537,15 +539,15 @@ const handleCreatePrestamo = async () => {
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border bg-hover/50">
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">ID</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Cliente</th>
-                <th class="text-right px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Monto</th>
-                <th class="text-right px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Capital</th>
-                <th class="text-right px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Saldo</th>
-                <th class="text-right px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Mora</th>
-                <th class="text-center px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Estado</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Inicio</th>
-                <th class="text-center px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Acciones</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden sm:table-cell">ID</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Cliente</th>
+                <th class="text-right px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Monto</th>
+                <th class="text-right px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden lg:table-cell">Capital</th>
+                <th class="text-right px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden md:table-cell">Saldo</th>
+                <th class="text-right px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden sm:table-cell">Mora</th>
+                <th class="text-center px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Estado</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden lg:table-cell">Inicio</th>
+                <th class="text-center px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -557,32 +559,32 @@ const handleCreatePrestamo = async () => {
                 ]"
               >
                 <!-- ID -->
-                <td class="px-5 py-3.5">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 hidden sm:table-cell">
                   <span class="text-xs font-mono font-bold text-primary">#{{ prestamo.id }}</span>
                 </td>
 
                 <!-- Cliente -->
-                <td class="px-5 py-3.5">
-                  <div class="flex items-center gap-3">
-                    <div :class="['w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-transform group-hover:scale-105', getAvatarColor(prestamo.cliente_id)]">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5">
+                  <div class="flex items-center gap-2 sm:gap-3">
+                    <div :class="['w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-transform group-hover:scale-105', getAvatarColor(prestamo.cliente_id)]">
                       {{ getInitials(prestamo.cliente) }}
                     </div>
-                    <div>
-                      <p class="font-semibold text-card-foreground text-sm leading-tight">
+                    <div class="min-w-0">
+                      <p class="font-semibold text-card-foreground text-sm leading-tight truncate max-w-[120px] sm:max-w-none">
                         {{ prestamo.cliente?.nombre || prestamo.cliente?.persona?.nombre || "—" }}
                       </p>
-                      <p class="text-[11px] text-muted mt-0.5">{{ prestamo.cliente?.dpi || prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
+                      <p class="text-[11px] text-muted mt-0.5 hidden sm:block">{{ prestamo.cliente?.dpi || prestamo.cliente?.persona?.dpi || "Sin DPI" }}</p>
                     </div>
                   </div>
                 </td>
 
                 <!-- Monto -->
-                <td class="px-5 py-3.5 text-right font-semibold text-card-foreground">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-right font-semibold text-card-foreground text-sm">
                   {{ formatMoney(prestamo.monto) }}
                 </td>
 
                 <!-- Capital con barra de progreso -->
-                <td class="px-5 py-3.5 text-right">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-right hidden lg:table-cell">
                   <p class="text-sm text-muted font-medium">{{ formatMoney(prestamo.capital_activo) }}</p>
                   <div class="w-16 h-1 bg-border rounded-full mt-1 ml-auto overflow-hidden">
                     <div
@@ -594,7 +596,7 @@ const handleCreatePrestamo = async () => {
                 </td>
 
                 <!-- Saldo -->
-                <td class="px-5 py-3.5 text-right">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-right hidden md:table-cell">
                   <span
                     :class="(prestamo.saldo || 0) < 0
                       ? 'text-emerald-600 font-medium text-xs'
@@ -606,7 +608,7 @@ const handleCreatePrestamo = async () => {
                 </td>
 
                 <!-- Mora con severidad -->
-                <td class="px-5 py-3.5 text-right">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-right hidden sm:table-cell">
                   <div v-if="(prestamo.mora || 0) > 0" class="inline-flex items-center gap-1.5 justify-end">
                     <span :class="['w-1.5 h-1.5 rounded-full flex-shrink-0', getMoraSeverity(prestamo.mora)?.dotClass]"></span>
                     <span class="text-red-600 font-semibold text-sm">{{ formatMoney(prestamo.mora) }}</span>
@@ -615,14 +617,14 @@ const handleCreatePrestamo = async () => {
                 </td>
 
                 <!-- Estado -->
-                <td class="px-5 py-3.5 text-center">
-                  <span :class="[getStatusBadge(prestamo).class, 'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold']">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 text-center">
+                  <span :class="[getStatusBadge(prestamo).class, 'inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-semibold']">
                     {{ getStatusBadge(prestamo).label }}
                   </span>
                 </td>
 
                 <!-- Fecha relativa -->
-                <td class="px-5 py-3.5">
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5 hidden lg:table-cell">
                   <span
                     class="text-xs text-muted cursor-default"
                     :title="prestamo.fecha_inicio || ''"
@@ -631,9 +633,9 @@ const handleCreatePrestamo = async () => {
                   </span>
                 </td>
 
-                <!-- Acciones (visibles solo en hover) -->
-                <td class="px-5 py-3.5">
-                  <div class="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <!-- Acciones: siempre visibles en móvil, solo en hover en desktop -->
+                <td class="px-3 py-3 sm:px-5 sm:py-3.5">
+                  <div class="flex items-center justify-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button
                       class="p-1.5 rounded-lg transition-colors hover:bg-primary/10"
                       title="Ver detalle"

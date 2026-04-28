@@ -160,13 +160,13 @@ const handleCreateCliente = async () => {
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border bg-hover/50">
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Cliente</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Cédula</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Teléfono</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Actividad</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Dirección Cobro</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Ingreso</th>
-                <th class="text-center px-5 py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Acciones</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Cliente</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden sm:table-cell">Cédula</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden md:table-cell">Teléfono</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden lg:table-cell">Actividad</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden lg:table-cell">Dirección Cobro</th>
+                <th class="text-left px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider hidden xl:table-cell">Ingreso</th>
+                <th class="text-center px-3 py-3 sm:px-5 sm:py-3.5 font-semibold text-muted text-xs uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -175,25 +175,25 @@ const handleCreateCliente = async () => {
                 :key="cliente.id"
                 class="border-b border-border last:border-0 transition-colors hover:bg-hover/50"
               >
-                <td class="px-5 py-4">
-                  <div class="flex items-center gap-3">
-                    <div :class="[getRandomColor(cliente.id), 'w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0']">
+                <td class="px-3 py-3 sm:px-5 sm:py-4">
+                  <div class="flex items-center gap-2 sm:gap-3">
+                    <div :class="[getRandomColor(cliente.id), 'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0']">
                       {{ getInitials(cliente.persona) }}
                     </div>
-                    <div>
-                      <p class="font-semibold text-card-foreground">
+                    <div class="min-w-0">
+                      <p class="font-semibold text-card-foreground truncate max-w-[140px] sm:max-w-none">
                         {{ cliente.persona?.nombre || "—" }} {{ cliente.persona?.apellido || "" }}
                       </p>
-                      <p class="text-xs text-muted">{{ cliente.empresa_trabajo || "Sin empresa" }}</p>
+                      <p class="text-xs text-muted hidden sm:block">{{ cliente.empresa_trabajo || "Sin empresa" }}</p>
                     </div>
                   </div>
                 </td>
-                <td class="px-5 py-4 text-muted">{{ cliente.persona?.dpi || "—" }}</td>
-                <td class="px-5 py-4 text-muted">{{ cliente.persona?.telefono || "—" }}</td>
-                <td class="px-5 py-4 text-muted">{{ cliente.actividad || "—" }}</td>
-                <td class="px-5 py-4 text-muted max-w-[200px] truncate">{{ cliente.direccion_cobrar || "—" }}</td>
-                <td class="px-5 py-4 text-muted text-xs">{{ cliente.fecha_ingreso || "—" }}</td>
-                <td class="px-5 py-4">
+                <td class="px-3 py-3 sm:px-5 sm:py-4 text-muted hidden sm:table-cell">{{ cliente.persona?.dpi || "—" }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-4 text-muted hidden md:table-cell">{{ cliente.persona?.telefono || "—" }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-4 text-muted hidden lg:table-cell">{{ cliente.actividad || "—" }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-4 text-muted max-w-[200px] truncate hidden lg:table-cell">{{ cliente.direccion_cobrar || "—" }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-4 text-muted text-xs hidden xl:table-cell">{{ cliente.fecha_ingreso || "—" }}</td>
+                <td class="px-3 py-3 sm:px-5 sm:py-4">
                   <div class="flex items-center justify-center gap-1">
                     <button
                       class="p-1.5 rounded-lg transition-colors hover:bg-hover"

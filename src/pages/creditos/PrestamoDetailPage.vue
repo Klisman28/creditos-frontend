@@ -351,7 +351,7 @@ const getFichaStatusBadgeClass = (id: number) => {
           <h2 class="text-2xl font-bold mb-6">Crédito #{{ prestamoId }} — {{ prestamo?.cliente?.nombre }}</h2>
 
           <!-- Métricas principales (3 columnas) -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 mb-6">
             <div>
               <p class="text-xs font-bold text-muted uppercase tracking-widest mb-1">💰 Monto Original</p>
               <p class="text-2xl font-bold text-card-foreground">{{ formatMoney(prestamo?.monto) }}</p>
@@ -403,11 +403,11 @@ const getFichaStatusBadgeClass = (id: number) => {
         <button
           v-for="tab in tabs" :key="tab.id"
           @click="activeTab = tab.id"
-          :class="['flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap',
+          :class="['flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap',
             activeTab === tab.id ? 'bg-card text-primary shadow-sm border border-border' : 'text-muted hover:text-card-foreground']"
         >
-          <Icon :name="tab.icon" :size="16" />
-          {{ tab.label }}
+          <Icon :name="tab.icon" :size="15" />
+          <span class="hidden xs:inline">{{ tab.label }}</span>
         </button>
       </div>
     </div>
@@ -462,12 +462,12 @@ const getFichaStatusBadgeClass = (id: number) => {
                 <table class="w-full text-sm border-collapse">
                   <thead>
                     <tr class="bg-muted/30 border-b border-border text-[10px] uppercase text-muted font-bold tracking-widest">
-                      <th class="px-6 py-4 text-left border-b border-border">No. Día</th>
-                      <th class="px-6 py-4 text-left border-b border-border">Fecha Programada</th>
-                      <th class="px-6 py-4 text-right border-b border-border">Cuota</th>
-                      <th class="px-6 py-4 text-right border-b border-border">Mora</th>
-                      <th class="px-6 py-4 text-center border-b border-border">Estado</th>
-                      <th class="px-6 py-4 text-right border-b border-border">Total</th>
+                      <th class="px-3 py-3 sm:px-6 sm:py-4 text-left border-b border-border">No.</th>
+                      <th class="px-3 py-3 sm:px-6 sm:py-4 text-left border-b border-border">Fecha</th>
+                      <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border">Cuota</th>
+                      <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border hidden sm:table-cell">Mora</th>
+                      <th class="px-3 py-3 sm:px-6 sm:py-4 text-center border-b border-border">Estado</th>
+                      <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border">Total</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
@@ -485,20 +485,20 @@ const getFichaStatusBadgeClass = (id: number) => {
                       </td>
                     </tr>
                     <tr v-for="ficha in prestamo.fichas_pago" :key="ficha.id" class="hover:bg-muted/10 transition-colors">
-                       <td class="px-6 py-4 font-bold text-card-foreground border-b border-border/50">{{ ficha.no_dia }}</td>
-                       <td class="px-6 py-4 font-medium border-b border-border/50">{{ formatDate(ficha.fecha) }}</td>
-                       <td class="px-6 py-4 text-right border-b border-border/50">{{ formatMoney(ficha.cuota) }}</td>
-                       <td class="px-6 py-4 text-right border-b border-border/50">
+                       <td class="px-3 py-3 sm:px-6 sm:py-4 font-bold text-card-foreground border-b border-border/50">{{ ficha.no_dia }}</td>
+                       <td class="px-3 py-3 sm:px-6 sm:py-4 font-medium border-b border-border/50">{{ formatDate(ficha.fecha) }}</td>
+                       <td class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border/50">{{ formatMoney(ficha.cuota) }}</td>
+                       <td class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border/50 hidden sm:table-cell">
                          <span :class="[ficha.mora > 0 ? 'text-red-500 font-bold' : 'text-muted']">
                            {{ formatMoney(ficha.mora) }}
                          </span>
                        </td>
-                       <td class="px-6 py-4 text-center border-b border-border/50">
+                       <td class="px-3 py-3 sm:px-6 sm:py-4 text-center border-b border-border/50">
                          <span :class="getFichaStatusBadgeClass(ficha.estado || 0)">
                            {{ getFichaStatusLabel(ficha.estado || 0) }}
                          </span>
                        </td>
-                       <td class="px-6 py-4 text-right font-bold text-primary border-b border-border/50">
+                       <td class="px-3 py-3 sm:px-6 sm:py-4 text-right font-bold text-primary border-b border-border/50">
                          {{ formatMoney(ficha.total || ficha.cuota) }}
                        </td>
                     </tr>
@@ -596,12 +596,12 @@ const getFichaStatusBadgeClass = (id: number) => {
                 <table class="w-full text-sm border-collapse">
                   <thead>
                      <tr class="bg-muted/30 border-b border-border text-[10px] uppercase text-muted font-bold tracking-widest">
-                        <th class="px-6 py-4 text-left border-b border-border">Fecha Pago</th>
-                        <th class="px-6 py-4 text-left border-b border-border">Descripción</th>
-                        <th class="px-6 py-4 text-right border-b border-border">Capital</th>
-                        <th class="px-6 py-4 text-right border-b border-border">Interés</th>
-                        <th class="px-6 py-4 text-right border-b border-border">Mora</th>
-                        <th class="px-6 py-4 text-right border-b border-border font-bold">Total</th>
+                        <th class="px-3 py-3 sm:px-6 sm:py-4 text-left border-b border-border">Fecha</th>
+                        <th class="px-3 py-3 sm:px-6 sm:py-4 text-left border-b border-border hidden sm:table-cell">Descripción</th>
+                        <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border hidden md:table-cell">Capital</th>
+                        <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border hidden md:table-cell">Interés</th>
+                        <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border hidden sm:table-cell">Mora</th>
+                        <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border font-bold">Total</th>
                      </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
@@ -617,12 +617,12 @@ const getFichaStatusBadgeClass = (id: number) => {
                         </td>
                      </tr>
                      <tr v-for="pago in prestamo.pagos" :key="pago.id" class="hover:bg-muted/10 transition-colors">
-                        <td class="px-6 py-4 font-medium border-b border-border/50">{{ formatDate(pago.created_at ? (pago.created_at as string) : pago.fecha) }}</td>
-                        <td class="px-6 py-4 text-xs text-muted border-b border-border/50">{{ pago.descripcion || 'Pago regular' }}</td>
-                        <td class="px-6 py-4 text-right font-medium border-b border-border/50">{{ formatMoney(pago.capital) }}</td>
-                        <td class="px-6 py-4 text-right font-medium border-b border-border/50">{{ formatMoney(pago.interes) }}</td>
-                        <td class="px-6 py-4 text-right text-red-500 font-medium border-b border-border/50">{{ formatMoney(pago.mora) }}</td>
-                        <td class="px-6 py-4 text-right font-bold text-primary border-b border-border/50">{{ formatMoney(pago.monto) }}</td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 font-medium border-b border-border/50">{{ formatDate(pago.created_at ? (pago.created_at as string) : pago.fecha) }}</td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 text-xs text-muted border-b border-border/50 hidden sm:table-cell">{{ pago.descripcion || 'Pago regular' }}</td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 text-right font-medium border-b border-border/50 hidden md:table-cell">{{ formatMoney(pago.capital) }}</td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 text-right font-medium border-b border-border/50 hidden md:table-cell">{{ formatMoney(pago.interes) }}</td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 text-right text-red-500 font-medium border-b border-border/50 hidden sm:table-cell">{{ formatMoney(pago.mora) }}</td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 text-right font-bold text-primary border-b border-border/50">{{ formatMoney(pago.monto) }}</td>
                      </tr>
                   </tbody>
                 </table>
