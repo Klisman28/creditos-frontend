@@ -1,0 +1,1 @@
+import{v as t}from"./index-CZPv5q0d.js";const s=()=>{const e=t();return{state:e,login:(...o)=>e.login(...o),register:(...o)=>e.register(...o),logout:()=>e.logout(),checkToken:o=>e.checkToken(o)}};export{s as u};

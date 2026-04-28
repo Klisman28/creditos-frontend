@@ -124,6 +124,11 @@ export const prestamosService = {
     return response.data;
   },
 
+  async deleteById(id: number) {
+    const response = await apiClient.delete(`/prestamos/${id}`);
+    return response.data;
+  },
+
   // Keep legacy planes helper for backward compat
   async getPlanes() {
     const response = await apiClient.get<Plan[]>("/planes/");

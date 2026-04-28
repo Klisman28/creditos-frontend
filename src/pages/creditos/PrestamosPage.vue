@@ -276,6 +276,33 @@ const resetForm = () => {
   clienteOptions.value = [];
 };
 
+// ── Eliminar crédito ──────────────────────────────────────────────────────
+const showDeleteModal = ref(false);
+const deletingPrestamo = ref<Prestamo | null>(null);
+const deleteLoading = ref(false);
+
+const openDeleteModal = (p: Prestamo) => {
+  deletingPrestamo.value = p;
+  showDeleteModal.value = true;
+};
+
+const confirmarEliminar = async () => {
+  if (!deletingPrestamo.value) return;
+  deleteLoading.value = true;
+  try {
+    await prestamosService.deleteById(deletingPrestamo.value.id);
+    push.success(`Crédito #${deletingPrestamo.value.id} eliminado`);
+    showDeleteModal.value = false;
+    deletingPrestamo.value = null;
+    loading.value = true;
+    await loadPrestamos();
+  } catch (err: any) {
+    push.error(err.response?.data?.detail || "No se pudo eliminar el crédito");
+  } finally {
+    deleteLoading.value = false;
+  }
+};
+
 const handleCreatePrestamo = async () => {
   // Validaciones
   if (!newPrestamo.value.cliente_id) {
@@ -628,6 +655,14 @@ const handleCreatePrestamo = async () => {
                     >
                       <Icon name="Printer" :size="15" class="text-muted hover:text-amber-500 transition-colors" />
                     </button>
+                    <button
+                      v-if="esAdmin"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-red-500/10"
+                      title="Eliminar crédito"
+                      @click.stop="openDeleteModal(prestamo)"
+                    >
+                      <Icon name="Trash2" :size="15" class="text-muted hover:text-red-500 transition-colors" />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -660,6 +695,71 @@ const handleCreatePrestamo = async () => {
 
     <Footer></Footer>
   </div>
+
+  <!-- DELETE LOAN MODAL -->
+  <Teleport to="body">
+    <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div class="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border overflow-hidden">
+        <div class="flex items-center justify-between p-5 border-b border-border">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <Icon name="Trash2" :size="18" class="text-red-500" />
+            </div>
+            <h3 class="text-base font-bold text-card-foreground">Eliminar Crédito</h3>
+          </div>
+          <button @click="showDeleteModal = false; deletingPrestamo = null" class="p-1.5 rounded-lg hover:bg-hover transition-colors">
+            <Icon name="X" :size="16" class="text-muted" />
+          </button>
+        </div>
+        <div class="p-5 space-y-4">
+          <div class="flex items-start gap-3 p-3.5 rounded-xl bg-red-500/5 border border-red-500/20">
+            <Icon name="AlertTriangle" :size="18" class="text-red-500 mt-0.5 flex-shrink-0" />
+            <div class="text-sm">
+              <p class="font-semibold text-card-foreground mb-1">Esta acción es irreversible</p>
+              <p class="text-muted text-xs leading-relaxed">Se eliminarán permanentemente el crédito, todas sus fichas de pago y sus registros de pagos.</p>
+            </div>
+          </div>
+          <div v-if="deletingPrestamo" class="space-y-1.5">
+            <div class="flex justify-between text-sm py-1.5 border-b border-border">
+              <span class="text-muted">Crédito</span>
+              <span class="font-semibold text-card-foreground">#{{ deletingPrestamo.id }}</span>
+            </div>
+            <div class="flex justify-between text-sm py-1.5 border-b border-border">
+              <span class="text-muted">Cliente</span>
+              <span class="font-semibold text-card-foreground">
+                {{ deletingPrestamo.cliente?.persona
+                  ? `${deletingPrestamo.cliente.persona.nombre} ${deletingPrestamo.cliente.persona.apellido}`
+                  : `ID ${deletingPrestamo.cliente_id}` }}
+              </span>
+            </div>
+            <div class="flex justify-between text-sm py-1.5">
+              <span class="text-muted">Monto</span>
+              <span class="font-semibold text-card-foreground">{{ formatMoney(deletingPrestamo.monto) }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-3 px-5 py-4 border-t border-border">
+          <button
+            class="px-4 py-2 rounded-lg text-sm font-medium border border-border hover:bg-hover transition-colors"
+            :disabled="deleteLoading"
+            @click="showDeleteModal = false; deletingPrestamo = null"
+          >
+            Cancelar
+          </button>
+          <button
+            class="px-4 py-2 rounded-lg text-sm font-semibold bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
+            :disabled="deleteLoading"
+            @click="confirmarEliminar"
+          >
+            <span v-if="deleteLoading" class="flex items-center gap-2">
+              <Icon name="Loader2" :size="14" class="animate-spin" /> Eliminando…
+            </span>
+            <span v-else>Eliminar crédito</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 
   <!-- CREATE LOAN MODAL -->
   <Teleport to="body">
