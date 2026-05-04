@@ -76,6 +76,73 @@ export interface EfectuarPagoRequest {
   descripcion?: string;
 }
 
+export interface FichaDetalle {
+  ficha_id: number;
+  no_dia: number | null;
+  fecha_programada: string | null;
+  cuota: number;
+  mora_estimada: number;
+  interes: number;
+  capital: number;
+  total_estimado: number;
+  estado: number;  // 0=pendiente, 1=pagado
+  estado_label: string;
+  pago_id: number | null;
+}
+
+export interface FichasPorPrestamoResponse {
+  prestamo_id: number;
+  total_fichas: number;
+  pendientes: number;
+  vencidas: number;
+  fichas: FichaDetalle[];
+}
+
+export interface PreviewPagoRequest {
+  prestamo_id: number;
+  strategy: "OLDEST_DUE" | "NEXT_INSTALLMENT" | "SPECIFIC_INSTALLMENT";
+  ficha_pago_id?: number | null;
+  fecha_efectiva_pago: string;  // YYYY-MM-DD
+  metodo_pago?: string;
+}
+
+export interface PreviewPagoResponse {
+  prestamo_id: number;
+  ficha_id: number;
+  no_dia: number | null;
+  fecha_programada: string;
+  fecha_efectiva_pago: string;
+  cuota: number;
+  mora: number;
+  total: number;
+  clasificacion: "PAGO_ADELANTADO" | "PAGO_A_TIEMPO" | "PAGO_CON_ATRASO";
+  strategy: string;
+  tiene_vencidas_previas: boolean;
+  cantidad_vencidas_previas: number;
+  impacto_caja: boolean;
+}
+
+export interface RegistrarPagoRequest {
+  prestamo_id: number;
+  strategy: "OLDEST_DUE" | "NEXT_INSTALLMENT" | "SPECIFIC_INSTALLMENT";
+  ficha_pago_id?: number | null;
+  fecha_efectiva_pago: string;  // YYYY-MM-DD
+  monto: number;
+  metodo_pago: string;
+  observaciones?: string;
+}
+
+export interface RegistrarPagoResponse {
+  ok: boolean;
+  pago_id: number;
+  ficha_id: number;
+  clasificacion: string;
+  mora: number;
+  total_pagado: number;
+  cuotas_pendientes: number;
+  prestamo_pagado: boolean;
+}
+
 const pagosService = {
   getHoy: async (search?: string) => {
     const res = await apiClient.get<PagosResponse>("/pagos/hoy", {
@@ -105,6 +172,21 @@ const pagosService = {
 
   efectuarPago: async (data: EfectuarPagoRequest) => {
     const res = await apiClient.post("/pagos/efectuar", data);
+    return res.data;
+  },
+
+  getFichasPorPrestamo: async (prestamoId: number) => {
+    const res = await apiClient.get<FichasPorPrestamoResponse>(`/pagos/prestamo/${prestamoId}/fichas`);
+    return res.data;
+  },
+
+  previewPago: async (data: PreviewPagoRequest) => {
+    const res = await apiClient.post<PreviewPagoResponse>("/pagos/preview", data);
+    return res.data;
+  },
+
+  registrarPago: async (data: RegistrarPagoRequest) => {
+    const res = await apiClient.post<RegistrarPagoResponse>("/pagos/registrar", data);
     return res.data;
   },
 };

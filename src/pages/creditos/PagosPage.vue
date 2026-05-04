@@ -5,6 +5,7 @@ import Icon from "@/components/Icon.vue";
 import { Button } from "@/components/ui/button";
 import { push } from "notivue";
 import pagosService, { type FichaItem, type VencidoItem, type HistorialItem } from "@/services/pagosService";
+import RegistrarPagoModal from "@/components/pagos/RegistrarPagoModal.vue";
 
 // ─── State ─────────────────────────────────────────────────────────
 
@@ -42,15 +43,15 @@ const totalCuotaPendientes = ref(0);
 const totalMoraVencidos = ref(0);
 const fechaHoy = ref("");
 
-// Modal
-const showPagoModal = ref(false);
-const pagoSaving = ref(false);
-const selectedFicha = ref<FichaItem | null>(null);
-const pagoForm = ref({
-  monto: 0,
-  mora: 0,
-  descripcion: "",
-});
+// Modal V2 — Registrar Pago
+const showRegistrarModal = ref(false);
+const registrarPrestamoId = ref(0);
+const registrarFichaId = ref<number | null>(null);
+const registrarClienteNombre = ref("");
+
+// Header prompt (enter loan ID)
+const showLoanPrompt = ref(false);
+const loanPromptId = ref("");
 
 // Debounce timer
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -209,34 +210,22 @@ watch(activeTab, () => {
 
 // ─── Actions ───────────────────────────────────────────────────────
 
-const openPagoModal = (ficha: FichaItem) => {
-  selectedFicha.value = ficha;
-  pagoForm.value = {
-    monto: ficha.cuota,
-    mora: ficha.mora,
-    descripcion: "",
-  };
-  showPagoModal.value = true;
+const openRegistrarFromRow = (ficha: FichaItem) => {
+  registrarPrestamoId.value = ficha.prestamo_id ?? 0;
+  registrarFichaId.value = ficha.ficha_id;
+  registrarClienteNombre.value = ficha.cliente;
+  showRegistrarModal.value = true;
 };
 
-const handleEfectuarPago = async () => {
-  if (!selectedFicha.value) return;
-  pagoSaving.value = true;
-  try {
-    await pagosService.efectuarPago({
-      ficha_pago_id: selectedFicha.value.ficha_id,
-      monto: pagoForm.value.monto,
-      mora: pagoForm.value.mora,
-      descripcion: pagoForm.value.descripcion || undefined,
-    });
-    push.success("Pago registrado exitosamente");
-    showPagoModal.value = false;
-    await loadAll();
-  } catch (err: any) {
-    push.error(err.response?.data?.detail || "Error al registrar el pago");
-  } finally {
-    pagoSaving.value = false;
-  }
+const openRegistrarFromPrompt = () => {
+  const id = parseInt(loanPromptId.value);
+  if (!id) return;
+  registrarPrestamoId.value = id;
+  registrarFichaId.value = null;
+  registrarClienteNombre.value = "";
+  showLoanPrompt.value = false;
+  loanPromptId.value = "";
+  showRegistrarModal.value = true;
 };
 
 const historialPrevPage = () => {
@@ -321,10 +310,16 @@ const summaryCards = computed(() => [
             <span class="font-medium text-card-foreground">{{ fechaHoy ? formatDate(fechaHoy) : "—" }}</span>
           </p>
         </div>
-        <Button @click="loadAll" class="gap-2" variant="outline">
-          <Icon name="RefreshCw" :size="16" />
-          Actualizar
-        </Button>
+        <div class="flex items-center gap-2">
+          <Button @click="showLoanPrompt = true" class="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+            <Icon name="Plus" :size="16" />
+            Registrar Pago
+          </Button>
+          <Button @click="loadAll" class="gap-2" variant="outline">
+            <Icon name="RefreshCw" :size="16" />
+            Actualizar
+          </Button>
+        </div>
       </div>
     </div>
 
@@ -480,12 +475,12 @@ const summaryCards = computed(() => [
                   <div class="flex gap-1 justify-center">
                     <button
                       v-if="ficha.estado === 0"
-                      @click="openPagoModal(ficha)"
+                      @click="openRegistrarFromRow(ficha)"
                       class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
-                      title="Efectuar Pago"
+                      title="Registrar Pago"
                     >
                       <Icon name="CheckCircle" :size="13" />
-                      <span class="hidden xs:inline">Pagar</span>
+                      <span class="hidden xs:inline">Cobrar</span>
                     </button>
                     <span v-else class="text-xs text-emerald-500 flex items-center gap-1">
                       <Icon name="CheckCircle" :size="13" /> <span class="hidden sm:inline">Cobrado</span>
@@ -641,88 +636,51 @@ const summaryCards = computed(() => [
     <Footer></Footer>
   </div>
 
-  <!-- EFECTUAR PAGO MODAL -->
+  <!-- LOAN ID PROMPT -->
   <Teleport to="body">
-    <div v-if="showPagoModal && selectedFicha" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="showPagoModal = false"></div>
-      <div class="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
-        <div class="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h3 class="text-lg font-bold text-card-foreground">Efectuar Pago</h3>
-            <p class="text-xs text-muted mt-0.5">Cuota #{{ selectedFicha.no_dia }} — {{ selectedFicha.cliente }}</p>
-          </div>
-          <button @click="showPagoModal = false" class="p-2 rounded-lg hover:bg-hover transition-colors">
-            <Icon name="X" :size="18" class="text-muted" />
+    <div v-if="showLoanPrompt" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="showLoanPrompt = false"></div>
+      <div class="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-card-foreground">Registrar Pago</h3>
+          <button @click="showLoanPrompt = false" class="p-1.5 rounded-lg hover:bg-hover transition-colors">
+            <Icon name="X" :size="16" class="text-muted" />
           </button>
         </div>
-
-        <form @submit.prevent="handleEfectuarPago" class="p-6 space-y-4">
-          <!-- Info Summary -->
-          <div class="rounded-lg bg-muted/20 p-4 space-y-2">
-            <div class="flex justify-between text-sm">
-              <span class="text-muted">Préstamo</span>
-              <span class="font-mono font-semibold text-card-foreground">#{{ selectedFicha.prestamo_id }}</span>
-            </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-muted">Ruta</span>
-              <span class="font-medium text-card-foreground">{{ selectedFicha.ruta }}</span>
-            </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-muted">DPI</span>
-              <span class="font-mono text-card-foreground">{{ selectedFicha.dpi }}</span>
-            </div>
-          </div>
-
-          <!-- Monto -->
-          <div>
-            <label class="block text-xs font-medium text-muted mb-1.5">Monto de Cuota (Q)</label>
-            <input v-model.number="pagoForm.monto" type="number" step="0.01" min="0" required
-              class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-            />
-          </div>
-
-          <!-- Mora -->
-          <div>
-            <label class="block text-xs font-medium text-muted mb-1.5">Mora (Q)</label>
-            <input v-model.number="pagoForm.mora" type="number" step="0.01" min="0"
-              class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-            />
-          </div>
-
-          <!-- Descripcion -->
-          <div>
-            <label class="block text-xs font-medium text-muted mb-1.5">Descripción (opcional)</label>
-            <textarea v-model="pagoForm.descripcion" rows="2"
-              class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"
-              placeholder="Observaciones del pago..."></textarea>
-          </div>
-
-          <!-- Total preview -->
-          <div class="rounded-lg bg-emerald-50 dark:bg-emerald-500/10 p-4 flex items-center justify-between">
-            <span class="text-sm font-medium text-emerald-700 dark:text-emerald-300">Total a cobrar</span>
-            <span class="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-              {{ formatCurrency(pagoForm.monto + pagoForm.mora) }}
-            </span>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex justify-end gap-3 pt-2">
-            <Button variant="outline" type="button" @click="showPagoModal = false">Cancelar</Button>
-            <button
-              type="submit"
-              :disabled="pagoSaving"
-              class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <svg v-if="pagoSaving" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <Icon v-else name="CheckCircle" :size="16" />
-              {{ pagoSaving ? "Procesando..." : "Confirmar Pago" }}
-            </button>
-          </div>
-        </form>
+        <div>
+          <label class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Código del Préstamo</label>
+          <input
+            v-model="loanPromptId"
+            type="number"
+            placeholder="Ej: 123"
+            class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+            @keyup.enter="openRegistrarFromPrompt"
+          />
+        </div>
+        <div class="flex justify-end gap-3">
+          <Button variant="outline" @click="showLoanPrompt = false">Cancelar</Button>
+          <Button :disabled="!loanPromptId" @click="openRegistrarFromPrompt" class="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+            Continuar <Icon name="ArrowRight" :size="15" />
+          </Button>
+        </div>
       </div>
     </div>
   </Teleport>
+
+  <!-- REGISTRAR PAGO MODAL (V2) -->
+  <Teleport to="body">
+    <div v-if="showRegistrarModal && registrarPrestamoId" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="showRegistrarModal = false"></div>
+      <div class="relative w-full max-w-2xl">
+        <RegistrarPagoModal
+          :prestamo-id="registrarPrestamoId"
+          :ficha-id="registrarFichaId"
+          :cliente-nombre="registrarClienteNombre"
+          @close="showRegistrarModal = false"
+          @registered="showRegistrarModal = false; loadAll()"
+        />
+      </div>
+    </div>
+  </Teleport>
+
 </template>

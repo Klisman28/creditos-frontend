@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { push } from "notivue";
 import { useAuthStore } from "@/stores/auth";
 import { LOAN_TABS } from "@/types/loan";
+import RegistrarPagoModal from "@/components/pagos/RegistrarPagoModal.vue";
 
 const authStore = useAuthStore();
 const esAdmin = computed(() => ["administrador", "supervisor", "validador"].includes(authStore.role ?? ""));
@@ -37,6 +38,15 @@ const loadPrestamo = async () => {
 };
 
 onMounted(loadPrestamo);
+
+// ── Pagar Cuota modal ────────────────────────────────────────────────
+const showPagarModal = ref(false);
+const pagarFichaId = ref<number | null>(null);
+
+const openPagarModal = (fichaId?: number) => {
+  pagarFichaId.value = fichaId ?? null;
+  showPagarModal.value = true;
+};
 
 // ── Aprobación ────────────────────────────────────────────────────────
 const showAprobacionModal = ref(false);
@@ -335,7 +345,7 @@ const getFichaStatusBadgeClass = (id: number) => {
         <Button variant="outline" size="sm" @click="router.back()">
           <Icon name="ArrowLeft" :size="16" class="mr-2" /> Volver
         </Button>
-        <Button size="sm" class="bg-emerald-500 hover:bg-emerald-600">
+        <Button size="sm" class="bg-emerald-500 hover:bg-emerald-600" @click="openPagarModal()">
           <Icon name="Receipt" :size="16" class="mr-2" /> Pagar Cuota
         </Button>
       </div>
@@ -468,11 +478,12 @@ const getFichaStatusBadgeClass = (id: number) => {
                       <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border hidden sm:table-cell">Mora</th>
                       <th class="px-3 py-3 sm:px-6 sm:py-4 text-center border-b border-border">Estado</th>
                       <th class="px-3 py-3 sm:px-6 sm:py-4 text-right border-b border-border">Total</th>
+                      <th class="px-3 py-3 sm:px-6 sm:py-4 text-center border-b border-border"></th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
                     <tr v-if="!(prestamo.fichas_pago ?? []).length">
-                      <td colspan="6" class="px-6 py-10 text-center">
+                      <td colspan="7" class="px-6 py-10 text-center">
                         <div class="flex flex-col items-center gap-2">
                           <div class="w-12 h-12 rounded-xl bg-muted/30 flex items-center justify-center">
                             <Icon name="CalendarX2" :size="22" class="text-muted" />
@@ -500,6 +511,18 @@ const getFichaStatusBadgeClass = (id: number) => {
                        </td>
                        <td class="px-3 py-3 sm:px-6 sm:py-4 text-right font-bold text-primary border-b border-border/50">
                          {{ formatMoney(ficha.total || ficha.cuota) }}
+                       </td>
+                       <td class="px-3 py-3 sm:px-6 sm:py-4 text-center border-b border-border/50">
+                         <button
+                           v-if="(ficha.estado || 0) !== 1"
+                           @click="openPagarModal(ficha.id)"
+                           class="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-medium transition-colors mx-auto"
+                           title="Pagar esta cuota"
+                         >
+                           <Icon name="CheckCircle" :size="12" />
+                           <span class="hidden sm:inline">Pagar</span>
+                         </button>
+                         <Icon v-else name="CheckCircle" :size="15" class="text-emerald-500 mx-auto" />
                        </td>
                     </tr>
                   </tbody>
@@ -847,6 +870,22 @@ const getFichaStatusBadgeClass = (id: number) => {
 
     <Footer />
   </div>
+
+  <!-- PAGAR CUOTA MODAL (V2) -->
+  <Teleport to="body">
+    <div v-if="showPagarModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="showPagarModal = false"></div>
+      <div class="relative w-full max-w-2xl">
+        <RegistrarPagoModal
+          :prestamo-id="Number(prestamoId)"
+          :ficha-id="pagarFichaId"
+          :cliente-nombre="prestamo?.cliente?.nombre"
+          @close="showPagarModal = false"
+          @registered="showPagarModal = false; loadPrestamo()"
+        />
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
