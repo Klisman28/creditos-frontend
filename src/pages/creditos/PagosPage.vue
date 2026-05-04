@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { push } from "notivue";
 import pagosService, { type FichaItem, type VencidoItem, type HistorialItem } from "@/services/pagosService";
 import RegistrarPagoModal from "@/components/pagos/RegistrarPagoModal.vue";
+import apiClient from "@/apiClient";
 
 // ─── State ─────────────────────────────────────────────────────────
 
@@ -49,9 +50,12 @@ const registrarPrestamoId = ref(0);
 const registrarFichaId = ref<number | null>(null);
 const registrarClienteNombre = ref("");
 
-// Header prompt (enter loan ID)
+// Header prompt — buscar préstamo
 const showLoanPrompt = ref(false);
-const loanPromptId = ref("");
+const loanSearchQuery = ref("");
+const loanSearchResults = ref<{ id: number; cliente_nombre: string; dpi: string | null; monto: number; saldo: number; estado_p_id: number }[]>([]);
+const loanSearchLoading = ref(false);
+let loanSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Debounce timer
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -217,15 +221,39 @@ const openRegistrarFromRow = (ficha: FichaItem) => {
   showRegistrarModal.value = true;
 };
 
-const openRegistrarFromPrompt = () => {
-  const id = parseInt(loanPromptId.value);
-  if (!id) return;
-  registrarPrestamoId.value = id;
+const doLoanSearch = async () => {
+  loanSearchLoading.value = true;
+  try {
+    const { data } = await apiClient.get("/prestamos/buscar", { params: { q: loanSearchQuery.value, limit: 8 } });
+    loanSearchResults.value = data;
+  } catch {
+    loanSearchResults.value = [];
+  } finally {
+    loanSearchLoading.value = false;
+  }
+};
+
+const scheduleLoanSearch = () => {
+  if (loanSearchTimer) clearTimeout(loanSearchTimer);
+  loanSearchTimer = setTimeout(doLoanSearch, 350);
+};
+
+const selectLoanResult = (loan: { id: number; cliente_nombre: string }) => {
+  registrarPrestamoId.value = loan.id;
   registrarFichaId.value = null;
-  registrarClienteNombre.value = "";
+  registrarClienteNombre.value = loan.cliente_nombre;
   showLoanPrompt.value = false;
-  loanPromptId.value = "";
+  loanSearchQuery.value = "";
+  loanSearchResults.value = [];
   showRegistrarModal.value = true;
+};
+
+const openLoanPrompt = () => {
+  loanSearchQuery.value = "";
+  loanSearchResults.value = [];
+  showLoanPrompt.value = true;
+  // Load recent loans on open
+  doLoanSearch();
 };
 
 const historialPrevPage = () => {
@@ -311,7 +339,7 @@ const summaryCards = computed(() => [
           </p>
         </div>
         <div class="flex items-center gap-2">
-          <Button @click="showLoanPrompt = true" class="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+          <Button @click="openLoanPrompt" class="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
             <Icon name="Plus" :size="16" />
             Registrar Pago
           </Button>
@@ -636,32 +664,81 @@ const summaryCards = computed(() => [
     <Footer></Footer>
   </div>
 
-  <!-- LOAN ID PROMPT -->
+  <!-- LOAN SEARCH PROMPT -->
   <Teleport to="body">
     <div v-if="showLoanPrompt" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="showLoanPrompt = false"></div>
-      <div class="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-bold text-card-foreground">Registrar Pago</h3>
+      <div class="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <Icon name="Receipt" :size="16" class="text-emerald-600" />
+            </div>
+            <h3 class="text-base font-bold text-card-foreground">Registrar Pago</h3>
+          </div>
           <button @click="showLoanPrompt = false" class="p-1.5 rounded-lg hover:bg-hover transition-colors">
             <Icon name="X" :size="16" class="text-muted" />
           </button>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Código del Préstamo</label>
-          <input
-            v-model="loanPromptId"
-            type="number"
-            placeholder="Ej: 123"
-            class="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-            @keyup.enter="openRegistrarFromPrompt"
-          />
+
+        <!-- Search input -->
+        <div class="px-5 pt-4 pb-2">
+          <div class="relative">
+            <Icon name="Search" :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              v-model="loanSearchQuery"
+              type="text"
+              placeholder="Buscar por nombre, DPI o código..."
+              class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              @input="scheduleLoanSearch"
+              autofocus
+            />
+            <div v-if="loanSearchLoading" class="absolute right-3 top-1/2 -translate-y-1/2">
+              <div class="w-4 h-4 border-2 border-border border-t-primary rounded-full animate-spin"></div>
+            </div>
+          </div>
         </div>
-        <div class="flex justify-end gap-3">
-          <Button variant="outline" @click="showLoanPrompt = false">Cancelar</Button>
-          <Button :disabled="!loanPromptId" @click="openRegistrarFromPrompt" class="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
-            Continuar <Icon name="ArrowRight" :size="15" />
-          </Button>
+
+        <!-- Results -->
+        <div class="px-5 pb-4">
+          <!-- Empty state -->
+          <div v-if="!loanSearchLoading && loanSearchResults.length === 0 && loanSearchQuery" class="py-8 text-center">
+            <Icon name="SearchX" :size="28" class="text-muted mx-auto mb-2" />
+            <p class="text-sm text-muted">Sin resultados para "{{ loanSearchQuery }}"</p>
+          </div>
+
+          <!-- List -->
+          <div v-else class="mt-2 rounded-xl border border-border overflow-hidden divide-y divide-border max-h-72 overflow-y-auto">
+            <button
+              v-for="loan in loanSearchResults"
+              :key="loan.id"
+              @click="selectLoanResult(loan)"
+              class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-hover transition-colors group"
+            >
+              <!-- ID badge -->
+              <div class="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center flex-shrink-0">
+                <span class="text-xs font-bold text-primary font-mono">#{{ loan.id }}</span>
+              </div>
+              <!-- Info -->
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-card-foreground truncate group-hover:text-primary transition-colors">
+                  {{ loan.cliente_nombre }}
+                </p>
+                <p class="text-[11px] text-muted font-mono">{{ loan.dpi ?? '—' }}</p>
+              </div>
+              <!-- Amounts -->
+              <div class="text-right flex-shrink-0">
+                <p class="text-xs font-bold text-card-foreground">Q{{ loan.saldo.toLocaleString('es-GT', { minimumFractionDigits: 2 }) }}</p>
+                <p class="text-[10px] text-muted">saldo</p>
+              </div>
+              <Icon name="ChevronRight" :size="14" class="text-muted group-hover:text-primary transition-colors flex-shrink-0" />
+            </button>
+          </div>
+
+          <p v-if="!loanSearchQuery" class="text-[11px] text-muted text-center mt-3">
+            Mostrando préstamos recientes — escribe para filtrar
+          </p>
         </div>
       </div>
     </div>
