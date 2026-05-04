@@ -143,6 +143,60 @@ export interface RegistrarPagoResponse {
   prestamo_pagado: boolean;
 }
 
+// V1.1 — Lote (partial + multi-cuota) types
+
+export interface AplicacionCuotaIn {
+  ficha_id: number;
+  monto: number;
+}
+
+export interface PreviewLoteRequest {
+  prestamo_id: number;
+  fecha_efectiva_pago: string;
+  metodo_pago: string;
+  modo: "PARTIAL" | "MULTI_MANUAL" | "MULTI_AUTO";
+  aplicaciones?: AplicacionCuotaIn[];   // PARTIAL and MULTI_MANUAL
+  ficha_ids?: number[];                  // MULTI_AUTO
+  monto_total?: number;                  // MULTI_AUTO
+}
+
+export interface LineaLote {
+  ficha_id: number;
+  no_dia: number;
+  fecha_programada: string;
+  cuota: number;
+  mora: number;
+  total_ficha: number;
+  ya_pagado: number;
+  monto_aplicar: number;
+  pendiente_restante: number;
+  nuevo_estado: 0 | 1 | 2;
+  es_parcial: boolean;
+  clasificacion: string;
+}
+
+export interface PreviewLoteResponse {
+  prestamo_id: number;
+  fecha_efectiva_pago: string;
+  lineas: LineaLote[];
+  total: number;
+  cantidad_fichas: number;
+  impacto_caja: boolean;
+}
+
+export interface RegistrarLoteRequest extends PreviewLoteRequest {
+  observaciones?: string;
+}
+
+export interface RegistrarLoteResponse {
+  ok: boolean;
+  lote_id: string;
+  pago_ids: number[];
+  fichas_procesadas: number;
+  cuotas_abiertas: number;
+  prestamo_pagado: boolean;
+}
+
 const pagosService = {
   getHoy: async (search?: string) => {
     const res = await apiClient.get<PagosResponse>("/pagos/hoy", {
@@ -187,6 +241,16 @@ const pagosService = {
 
   registrarPago: async (data: RegistrarPagoRequest) => {
     const res = await apiClient.post<RegistrarPagoResponse>("/pagos/registrar", data);
+    return res.data;
+  },
+
+  async previewLote(data: PreviewLoteRequest): Promise<PreviewLoteResponse> {
+    const res = await apiClient.post<PreviewLoteResponse>("/pagos/preview-lote", data);
+    return res.data;
+  },
+
+  async registrarLote(data: RegistrarLoteRequest): Promise<RegistrarLoteResponse> {
+    const res = await apiClient.post<RegistrarLoteResponse>("/pagos/registrar-lote", data);
     return res.data;
   },
 };
